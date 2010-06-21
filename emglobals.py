@@ -2,8 +2,6 @@
 Global variables module
 """
 
-import emgame as ga
-
 # pylint: disable-msg=C0103
 
 # PyGame related globals
@@ -41,7 +39,7 @@ screen = None # current screen definition
 
 loop_main_loop = True # loop the main gameplay loop
 player = None
-active_checkpoint = ga.ActiveCheckpoint()
+active_checkpoint = None
 
 # system related globals
 
@@ -61,6 +59,9 @@ class XY:
             return self.y
         else:
             raise IndexError, "Index out of range!"
+
+    def __len__(self):
+        return 2
 
     def as_tuple(self):
         return (self.x, self.y)
@@ -112,3 +113,11 @@ def tuple_add(tuple_one, tuple_two):
         tuple_out.append(tuple_one[idx] + tuple_two[idx])
     return tuple(tuple_out)
 
+def main():
+    position = XY()
+    tpos = position.as_tuple()
+    tpos = tuple_add(tpos, (1, 1))
+    print tpos
+
+if __name__ == "__main__":
+    main()

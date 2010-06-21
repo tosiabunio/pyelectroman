@@ -28,7 +28,9 @@ class PlayerEntity(ga.FSM, ga.Entity):
         self.move_vector = [0, 0]
 
     def load(self):
+        # load hero sprites
         self.data.load("hero")
+        # prepare animation table
         # standing facing left
         self.sprites["LSTAND"] = [(0, 1)]
         self.frames["LSTAND"] = len(self.sprites["LSTAND"])
@@ -77,18 +79,23 @@ class PlayerEntity(ga.FSM, ga.Entity):
         pygame.draw.rect(gl.display, color, rect, 1)
 
     def get_bbox(self):
+        """Overrides Entity.get_bbox() - single bbox for all hero sprites"""
         return self.bbox
 
     def get_sides(self):
+        """Overrides Entity.get_sides() - collides from all sides"""
         return {"L" : True, "R": True, "T" : True, "B" : True}
 
     def get_top(self):
-        return self.bbox[1] + self.get_x()
+        """Overrides Entity.get_top() - single bbox for all hero sprites"""
+        return self.bbox.top + self.get_x()
 
     def get_bottom(self):
+        """Overrides Entity.get_bottom() - single bbox for all hero sprites"""
         return self.get_x() + self.bbox.top + self.bbox.height
 
     def is_touchable(self):
+        """Overrides Entity.is_touchable() - no touch handler"""
         return False
 
     def state_fall(self, init=False):
@@ -111,7 +118,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
 
     def state_stand(self, init=False):
         if init:
-            to_ground = self.check_ground((0,0), gl.screen)
+            to_ground = self.check_ground((0, 0), gl.screen)
             if to_ground > 0:
                 self.enter_state(self.state_fall)
         else:

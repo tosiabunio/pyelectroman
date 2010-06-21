@@ -1,6 +1,7 @@
 """Gameplay module"""
 
 import emglobals as gl
+from emglobals import XY
 import emdisplay as di
 import pygame
 import logging
@@ -74,12 +75,16 @@ class Entity:
         assert isinstance(sprites, list)
         self.sprites = sprites
         self.initial = initial
+        if not isinstance(position, XY):
+            raise ValueError, "Entity position must by XY() instance"
         self.position = position
         self.frame = 0
         self.delay = 0
         self.counter = 0
 
     def set_position(self, position):
+        if not isinstance(position, XY):
+            raise ValueError, "Entity position must by XY() instance"
         self.position = position
 
     def get_position(self):
@@ -93,7 +98,7 @@ class Entity:
         return self.position.y
 
     def get_bbox(self):
-        '''return bounding boxc as pygame.Rect'''
+        '''return bounding box as pygame.Rect'''
         return self.sprites[self.frame].bbox
 
     def get_sides(self):
