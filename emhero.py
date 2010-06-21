@@ -104,8 +104,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
             self.frame = 0
             self.move_vector[1] = -2
         else:
-            if self.counter == 0:
-                self.exit_state(self.state_stand)
+            self.exit_state(self.state_stand)
 
     def state_move(self, init=False):
         if init:
@@ -117,11 +116,13 @@ class PlayerEntity(ga.FSM, ga.Entity):
             self.exit_state(self.state_stand)
 
     def state_stand(self, init=False):
+        to_ground = self.check_ground((0, 0), gl.screen)
         if init:
-            to_ground = self.check_ground((0, 0), gl.screen)
             if to_ground > 0:
                 self.enter_state(self.state_fall)
         else:
+            if to_ground > 0:
+                self.enter_state(self.state_fall)
             self.vstate = ("LSTAND", "RSTAND")[self.orientation]
             self.frame = 0
             if self.controller.left or self.controller.right:

@@ -46,22 +46,22 @@ class Controller:
 
 
 class FSM:
+    """Very simple Finite State Machine for entities"""
     def __init__(self):
         self.next_state = None
         self.state = lambda: None
 
     def enter_state(self, state):
         """Enter a new state immediately"""
-        logging.debug("enter_state() called")
         self.state = state
         self.state(True)
 
     def exit_state(self, state):
         """Change to a new state in next frame"""
-        logging.debug("exit_state() called")
         self.next_state = state
 
     def run_fsm(self):
+        """Enter new state or run current"""
         if self.next_state:
             self.state = self.next_state
             self.next_state = None
@@ -76,7 +76,7 @@ class Entity:
         self.sprites = sprites
         self.initial = initial
         if not isinstance(position, XY):
-            raise ValueError, "Entity position must by XY() instance"
+            raise ValueError, "Entity position must by XY() instance."
         self.position = position
         self.frame = 0
         self.delay = 0
@@ -84,7 +84,7 @@ class Entity:
 
     def set_position(self, position):
         if not isinstance(position, XY):
-            raise ValueError, "Entity position must by XY() instance"
+            raise ValueError, "Entity position must by XY() instance."
         self.position = position
 
     def get_position(self):
@@ -158,7 +158,7 @@ class Entity:
             if collided:
                 collided.sort(key=lambda o: o.get_top())
                 ctop = collided[0].get_top()
-                result = y - ctop
+                result = ctop - y
         return result
 
     def check_collision(self, offset, screen, ignore_ground):
