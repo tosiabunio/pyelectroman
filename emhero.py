@@ -1,7 +1,7 @@
 """Hero (player character) code"""
 
 import emglobals as gl
-from emglobals import XY
+from emglobals import XY, tuple_add
 import emdisplay as di
 import emdata as da
 import emgame as ga
@@ -24,7 +24,6 @@ class PlayerEntity(ga.FSM, ga.Entity):
         self.bbox = pygame.Rect(18, 12, 12, 84)
         self.vstate = "RSTAND"
         self.orientation = 1 # 0 left, 1 right
-        self.enter_state(self.state_stand)
         self.move_vector = [0, 0]
 
     def load(self):
@@ -60,6 +59,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
         self.sprites["TELE"] = [(36, 42), (37, 43), (38, 44),
                                  (39, 45), (40, 46), (41, 47)]
         self.frames["TELE"] = len(self.sprites["TELE"])
+        self.enter_state(self.state_stand)
 
     def display(self):
         position = self.get_position()
@@ -68,7 +68,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
         sprite = self.data.get_sprite(sprite)
         gl.display.blit(sprite.image, position)
         # display bottom sprite
-        position = gl.tuple_add(position, (0, gl.SPRITE_Y))
+        position = tuple_add(position, (0, gl.SPRITE_Y))
         sprite = self.sprites[self.vstate][self.frame][1]
         sprite = self.data.get_sprite(sprite)
         gl.display.blit(sprite.image, position)

@@ -49,7 +49,11 @@ log_filename = "em.log"  # empty string disables logging to file
 
 class XY:
     def __init__(self, x=0, y=0):
+        if not isinstance(x, int):
+            raise ValueError, "x must be int."
         self.x = x
+        if not isinstance(y, int):
+            raise ValueError, "y must be int."
         self.y = y
 
     def __getitem__(self, index):
@@ -65,6 +69,14 @@ class XY:
 
     def as_tuple(self):
         return (self.x, self.y)
+
+    @classmethod
+    def from_tuple(cls, tup):
+        obj = cls()
+        if len(tup) == 2:
+            obj.x = tup[0]
+            obj.y = tup[1]
+        return obj
 
 # other global functions
 

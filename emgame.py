@@ -1,7 +1,7 @@
 """Gameplay module"""
 
 import emglobals as gl
-from emglobals import XY
+from emglobals import XY, tuple_add
 import emdisplay as di
 import pygame
 import logging
@@ -124,20 +124,20 @@ class Entity:
         collide = self.sprites[0].collide
         position = self.position.astuple()
         if collide["T"]:
-            sp = gl.tuple_add((x, y), position)
-            ep = gl.tuple_add((x + w - 1, y), position)
+            sp = tuple_add((x, y), position)
+            ep = tuple_add((x + w - 1, y), position)
             pygame.draw.line(gl.display, color, sp, ep, 1)
         if collide["L"]:
-            sp = gl.tuple_add((x, y), position)
-            ep = gl.tuple_add((x, y + h - 1), position)
+            sp = tuple_add((x, y), position)
+            ep = tuple_add((x, y + h - 1), position)
             pygame.draw.line(gl.display, color, sp, ep, 1)
         if collide["R"]:
-            sp = gl.tuple_add((x + w - 1, y), position)
-            ep = gl.tuple_add((x + w - 1, y + h - 1), position)
+            sp = tuple_add((x + w - 1, y), position)
+            ep = tuple_add((x + w - 1, y + h - 1), position)
             pygame.draw.line(gl.display, color, sp, ep, 1)
         if collide["B"]:
-            sp = gl.tuple_add((x, y + h - 1), position)
-            ep = gl.tuple_add((x + w - 1, y + h - 1), position)
+            sp = tuple_add((x, y + h - 1), position)
+            ep = tuple_add((x + w - 1, y + h - 1), position)
             pygame.draw.line(gl.display, color, sp, ep, 1)
 
     def check_ground(self, offset, screen):
@@ -165,7 +165,7 @@ class Entity:
         collided = False
         if screen:
             me = self.get_bbox().copy()
-            me.move_ip(gl.tuple_add(self.get_position(), offset))
+            me.move_ip(tuple_add(self.get_position(), offset))
             for obj in screen.collisions:
                 you = obj.get_bbox().copy()
                 you.move_ip(obj.get_position())
