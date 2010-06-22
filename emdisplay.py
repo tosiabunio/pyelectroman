@@ -31,6 +31,17 @@ def show():
 
 def message(position, txt, font=None, antialias=False,
             color=pygame.Color(255, 255, 255)):
+    """
+    displays message in the main window (whole screen)
+
+    position - (x, y)
+    txt - string (can contain newlines)
+    font - pygame.Font
+    antialias - True or False
+    color - pygame.Color
+
+    returns position of next line as (x, y)
+    """
     cpos = position
     font = gl.medium_font if font is None else font
     lines = txt.split('\n')
@@ -49,6 +60,7 @@ def main():
     init_display()
     loop = True
     while loop:
+        clear_screen()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 loop = False
@@ -57,7 +69,6 @@ def main():
                     loop = False
         nextp = message((0, 0), "message1\nmessage2")
         message(nextp, "message3\nmessage4")
-        clear_screen()
         show()
     quit_display()
 

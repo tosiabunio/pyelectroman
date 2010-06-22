@@ -66,16 +66,16 @@ class Gameplay:
 
     def show_map(self, pos):
         scr = gl.current_screen
-        FULL = 0xFFFFFF
+        CURRENT = 0xFFFFFF
         # pylint: disable-msg=E1121
         screens_map_copy = pygame.Surface((32, 32))
         screens_map_copy.blit(self.screens_map, (0, 0))
         pixels = pygame.PixelArray(screens_map_copy)
         # pylint: enable-msg=E1121
-        pixels[(scr % 16) * 2 + 0][(scr / 16) * 2 + 0] = FULL
-        pixels[(scr % 16) * 2 + 1][(scr / 16) * 2 + 0] = FULL
-        pixels[(scr % 16) * 2 + 0][(scr / 16) * 2 + 1] = FULL
-        pixels[(scr % 16) * 2 + 1][(scr / 16) * 2 + 1] = FULL
+        pixels[(scr % 16) * 2 + 0][(scr / 16) * 2 + 0] = CURRENT
+        pixels[(scr % 16) * 2 + 1][(scr / 16) * 2 + 0] = CURRENT
+        pixels[(scr % 16) * 2 + 0][(scr / 16) * 2 + 1] = CURRENT
+        pixels[(scr % 16) * 2 + 1][(scr / 16) * 2 + 1] = CURRENT
         del pixels
         gl.window.blit(screens_map_copy, pos)
 
@@ -190,6 +190,7 @@ class Gameplay:
         self.screens_map = self.init_map()
 
     def loop_begin(self):
+        di.clear_screen()
         self.num_collisions = 0
         self.num_touched = 0
 
@@ -208,10 +209,9 @@ class Gameplay:
         gl.player.update()
 
     def loop_end(self):
-        di.clear_screen()
         self.display_screen(gl.screen)
         self.display_hero()
-        self.show_map((8, 8))
+        self.show_map((640 - 32 - 8, 8))
         self.show_info()
         self.show_help()
         di.show()

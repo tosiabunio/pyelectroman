@@ -1,4 +1,4 @@
-"""Hero (player character) code"""
+"""Hero (player's character) code"""
 
 import emglobals as gl
 from emglobals import XY, tuple_add
@@ -9,6 +9,12 @@ import logging
 import pygame
 
 class PlayerEntity(ga.FSM, ga.Entity):
+    """
+    Player's entity class, extends ga.Entity.
+    Only single instance is allowed.
+    Uses Finite State Machine.
+    Requires supplying ga.Controller class for player's input.
+    """
     __single = None
     def __init__(self, controller):
         if PlayerEntity.__single:
@@ -25,8 +31,10 @@ class PlayerEntity(ga.FSM, ga.Entity):
         self.vstate = "RSTAND"
         self.orientation = 1 # 0 left, 1 right
         self.move_vector = [0, 0]
+        self.to_ground = 0
 
     def load(self):
+        """Loads player character sprite set and builds reference tables."""
         # load hero sprites
         self.data.load("hero")
         # prepare animation table
@@ -62,6 +70,10 @@ class PlayerEntity(ga.FSM, ga.Entity):
         self.enter_state(self.state_stand)
 
     def display(self):
+        """
+        Displays player's character at current position using
+        calculates sprites.
+        """
         position = self.get_position()
         # display top sprite
         sprite = self.sprites[self.vstate][self.frame][0]
@@ -74,6 +86,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
         gl.display.blit(sprite.image, position)
 
     def display_collisions(self, color=pygame.Color(255, 128, 255)):
+        """Displays player's character bounding box"""
         rect = self.bbox.copy()
         rect.move_ip(self.get_position())
         pygame.draw.rect(gl.display, color, rect, 1)
@@ -99,6 +112,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
         return False
 
     def state_fall(self, init=False):
+        """Falling state handler"""
         if init:
             self.vstate = ("LSTAND", "RSTAND")[self.orientation]
             self.frame = 0
@@ -107,6 +121,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
             self.exit_state(self.state_stand)
 
     def state_move(self, init=False):
+        """Moving state handler"""
         if init:
             self.vstate = ("LWALK", "RWALK")[self.orientation]
             self.frame = 0
@@ -116,12 +131,12 @@ class PlayerEntity(ga.FSM, ga.Entity):
             self.exit_state(self.state_stand)
 
     def state_stand(self, init=False):
-        to_ground = self.check_ground((0, 0), gl.screen)
+        """Standing state handler"""
         if init:
-            if to_ground > 0:
+            if self.to_ground > 0:
                 self.enter_state(self.state_fall)
         else:
-            if to_ground > 0:
+            if self.to_ground > 0:
                 self.enter_state(self.state_fall)
             self.vstate = ("LSTAND", "RSTAND")[self.orientation]
             self.frame = 0
@@ -129,6 +144,10 @@ class PlayerEntity(ga.FSM, ga.Entity):
                 self.enter_state(self.state_move)
 
     def update(self):
+        """Player's character update function"""
+        self.to_ground = self.check_ground((0, 0), gl.screen)
+        if self.to_ground:
+            di.message((8, 8), "to ground: %d" % self.to_ground)
         self.run_fsm()
 
 # -----------------------------------------------------------------------------

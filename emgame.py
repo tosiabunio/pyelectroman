@@ -141,6 +141,7 @@ class Entity:
             pygame.draw.line(gl.display, color, sp, ep, 1)
 
     def check_ground(self, offset, screen):
+        """check_ground(self, offset, screen)"""
         result = None
         if screen:
             bbox = self.get_bbox()
@@ -162,6 +163,7 @@ class Entity:
         return result
 
     def check_collision(self, offset, screen, ignore_ground):
+        """check_collision(self, offset, screen, ignore_ground)"""
         collided = False
         if screen:
             me = self.get_bbox().copy()
@@ -186,6 +188,7 @@ class Entity:
         return collided
 
     def check_move(self, offset, screen, ignore_ground=False):
+        """check_move(self, offset, screen, ignore_ground=False)"""
         ox, oy = offset
         assert (ox & oy & 0x01) == 0
         if (ox == 0) and (oy == 0):
