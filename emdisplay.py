@@ -40,6 +40,8 @@ def message(position, txt, font=None, antialias=False,
         cpos = (cpos[0], cpos[1] + int (font.get_height() * 1.05))
     return cpos
 
+# -----------------------------------------------------------------------------
+# test code below
 
 def main():
     logging.basicConfig(level=logging.DEBUG,

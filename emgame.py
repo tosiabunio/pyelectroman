@@ -393,27 +393,8 @@ class FlashSpecial(Entity):
 # -----------------------------------------------------------------------------
 # test code below
 
-
-class Test:
-    def __init__(self):
-        self.loop = True
-
-    def run(self):
-        gl.data_folder = "data"
-        clock = pygame.time.Clock()
-        while self.loop:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    self.loop = False
-            clock.tick(20)
-
 def main():
-    logging.basicConfig(level=logging.DEBUG,
-                        format='%(levelname)s: %(funcName)s(): %(message)s')
-    di.init_display()
-    test = Test()
-    test.run()
-    di.quit_display()
+    pass
 
 if __name__ == "__main__":
     main()

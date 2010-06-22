@@ -125,6 +125,9 @@ def tuple_add(tuple_one, tuple_two):
         tuple_out.append(tuple_one[idx] + tuple_two[idx])
     return tuple(tuple_out)
 
+# -----------------------------------------------------------------------------
+# test code below
+
 def main():
     position = XY()
     tpos = position.as_tuple()

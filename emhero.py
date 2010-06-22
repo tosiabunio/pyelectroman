@@ -134,58 +134,8 @@ class PlayerEntity(ga.FSM, ga.Entity):
 # -----------------------------------------------------------------------------
 # test code below
 
-class Test:
-    def __init__(self):
-        gl.player = PlayerEntity(ga.Controller())
-        self.loop = True
-        self.show_collisions = False
-        self.key_handlers = {pygame.K_ESCAPE: self.on_k_escape,
-                             pygame.K_TAB: self.on_k_tab}
-
-    def on_k_escape(self):
-        self.loop = False
-
-    def on_k_tab(self):
-        self.show_collisions = False if self.show_collisions else True
-
-    def on_default(self):
-        pass
-
-    def display_heroes(self):
-        number = 0
-        for key in gl.player.sprites:
-            for frame in range(len(gl.player.sprites[key])):
-                gl.player.vstate = key
-                gl.player.frame = frame
-                x = (number % 10) * 56
-                y = int(number / 10) * 100
-                gl.player.position = XY(x, y)
-                gl.player.display()
-                if self.show_collisions:
-                    gl.player.display_collisions()
-                number += 1
-
-    def run(self):
-        gl.data_folder = "data"
-        gl.player.load()
-        self.loop = True
-        while self.loop:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    self.loop = False
-                if event.type == pygame.KEYDOWN:
-                    self.key_handlers.get(event.key, self.on_default)()
-            di.clear_screen()
-            self.display_heroes()
-            di.show()
-
 def main():
-    logging.basicConfig(level=logging.DEBUG,
-                        format='%(levelname)s: %(funcName)s(): %(message)s')
-    di.init_display()
-    test = Test()
-    test.run()
-    di.quit_display()
+    pass
 
 if __name__ == "__main__":
     main()
