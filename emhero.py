@@ -8,6 +8,8 @@ import emgame as ga
 import logging
 import pygame
 
+FALL_STEP = 2.3
+
 class PlayerEntity(ga.FSM, ga.Entity):
     """
     Player's entity class, extends ga.Entity.
@@ -116,19 +118,27 @@ class PlayerEntity(ga.FSM, ga.Entity):
         if init:
             self.vstate = ("LSTAND", "RSTAND")[self.orientation]
             self.frame = 0
-            self.move_vector[1] = -2
-        else:
-            self.exit_state(self.state_stand)
+            self.move_vector[1] = int(FALL_STEP)
+        if self.to_ground == 0:
+            self.enter_state(self.state_stand)
 
     def state_move(self, init=False):
         """Moving state handler"""
         if init:
             self.vstate = ("LWALK", "RWALK")[self.orientation]
             self.frame = 0
-        if self.controller.left or self.controller.right:
-            pass
-        else:
-            self.exit_state(self.state_stand)
+        if self.controller.left:
+            position = tuple_add(gl.player.get_position(), (-2, 0))
+            gl.player.set_position(XY.from_tuple(position))
+        elif self.controller.right:
+            position = tuple_add(gl.player.get_position(), (2, 0))
+            gl.player.set_position(XY.from_tuple(position))
+        elif self.controller.up:
+            position = tuple_add(gl.player.get_position(), (0, -2))
+            gl.player.set_position(XY.from_tuple(position))
+        elif self.controller.down:
+            position = tuple_add(gl.player.get_position(), (0, 2))
+            gl.player.set_position(XY.from_tuple(position))
 
     def state_stand(self, init=False):
         """Standing state handler"""
@@ -142,12 +152,13 @@ class PlayerEntity(ga.FSM, ga.Entity):
             self.frame = 0
             if self.controller.left or self.controller.right:
                 self.enter_state(self.state_move)
+            if self.controller.up or self.controller.down:
+                self.enter_state(self.state_move)
 
     def update(self):
         """Player's character update function"""
         self.to_ground = self.check_ground((0, 0), gl.screen)
-        if self.to_ground:
-            di.message((8, 8), "to ground: %d" % self.to_ground)
+        di.message((8, 8), "to ground: %d" % self.to_ground)
         self.run_fsm()
 
 # -----------------------------------------------------------------------------

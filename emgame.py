@@ -142,11 +142,12 @@ class Entity:
 
     def check_ground(self, offset, screen):
         """check_ground(self, offset, screen)"""
-        result = None
+        result = (gl.SCREEN_Y * (gl.SPRITE_Y + 1))
         if screen:
             bbox = self.get_bbox()
             x = bbox.left + (bbox.width / 2) + self.get_x() + offset[0]
-            y = bbox.top + bbox.height + self.get_y() + offset[1]
+            # 2 pixels up to always return negative when below ground
+            y = bbox.top + bbox.height + self.get_y() + offset[1] - 2
             w = 2
             h = (gl.SCREEN_Y * gl.SPRITE_Y) - y + 2
             me = pygame.Rect(x, y, w, h)
@@ -159,7 +160,8 @@ class Entity:
             if collided:
                 collided.sort(key=lambda o: o.get_top())
                 ctop = collided[0].get_top()
-                result = ctop - y
+                # corrected for 2 pixels added above
+                result = ctop - y - 2
         return result
 
     def check_collision(self, offset, screen, ignore_ground):
