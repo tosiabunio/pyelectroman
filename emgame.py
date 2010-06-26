@@ -1,13 +1,18 @@
 """Gameplay module"""
 
 import emglobals as gl
-from emglobals import XY, tuple_add
+from emglobals import XY
 import emdisplay as di
 import pygame
 import logging
 
 
 class Controller:
+    """
+    Class representing player's input.
+    Currently only keyboard is reported.
+    Joystick and gamepad controllers planned for the future.
+    """
     __single = None
     def __init__(self):
         if Controller.__single:
@@ -27,6 +32,7 @@ class Controller:
         self.fire = False
 
     def update(self):
+        """Update controller settings"""
         self.clear()
         keys = pygame.key.get_pressed()
         mods = pygame.key.get_mods()
@@ -46,26 +52,27 @@ class Controller:
 
 
 class FSM:
-    """Very simple Finite State Machine for entities"""
+    """Very simple Finite State Machine for entities."""
     def __init__(self):
         self.next_state = None
         self.state = lambda: None
 
     def enter_state(self, state):
-        """Enter a new state immediately"""
+        """Enter a new state immediately."""
+        logging.debug("Entering state: %s", state.__name__)
         self.state = state
         self.state(True)
 
     def exit_state(self, state):
-        """Change to a new state in next frame"""
+        """Change to a new state in next frame."""
         self.next_state = state
 
     def run_fsm(self):
-        """Enter new state or run current"""
+        """Cheange to a new state or run current."""
         if self.next_state:
-            self.state = self.next_state
+            state = self.next_state
             self.next_state = None
-            self.state(True)
+            self.enter(state)
         else:
             self.state()
 
@@ -83,13 +90,18 @@ class Entity:
         self.counter = 0
 
     def set_position(self, position):
+        """Set entity position"""
         if not isinstance(position, XY):
             raise ValueError, "Entity position must by XY() instance."
-        self.position = position
+        # create a copy not just reference
+        self.position = XY.from_self(position)
 
     def get_position(self):
-        '''return position as (x, y)'''
-        return self.position.as_tuple()
+        """
+        Return entity's position as XY(x, y).
+        The copy is returned to prevent overwriting by referring code.
+        """
+        return self.position.copy()
 
     def get_x(self):
         return self.position.x
@@ -98,10 +110,11 @@ class Entity:
         return self.position.y
 
     def get_bbox(self):
-        '''return bounding box as pygame.Rect'''
+        """Return bounding box for current sprite frame as pygame.Rect."""
         return self.sprites[self.frame].bbox
 
     def get_sides(self):
+        """Return boolean table with colliding sides for the current sprite."""
         return self.sprites[self.frame].collide
 
     def get_top(self):
@@ -111,9 +124,11 @@ class Entity:
         return (self.sprites[self.frame].status[0] & 0x40) != 0
 
     def touch(self):
+        """Standard touch handler."""
         pass
 
     def update(self):
+        """Standard update method."""
         pass
 
     def display(self):
@@ -122,26 +137,31 @@ class Entity:
     def display_collisions(self, color=pygame.Color(255, 0, 255)):
         x, y, w, h = self.sprites[0].bbox
         collide = self.sprites[0].collide
-        position = self.position.astuple()
+        position = self.get_position()
         if collide["T"]:
-            sp = tuple_add((x, y), position)
-            ep = tuple_add((x + w - 1, y), position)
+            sp = position + (x, y)
+            ep = position + (x + w - 1, y)
             pygame.draw.line(gl.display, color, sp, ep, 1)
         if collide["L"]:
-            sp = tuple_add((x, y), position)
-            ep = tuple_add((x, y + h - 1), position)
+            sp = position + (x, y)
+            ep = ep = position + (x, y + h - 1)
             pygame.draw.line(gl.display, color, sp, ep, 1)
         if collide["R"]:
-            sp = tuple_add((x + w - 1, y), position)
-            ep = tuple_add((x + w - 1, y + h - 1), position)
+            sp = position + (x + w - 1, y)
+            ep = position + (x + w - 1, y + h - 1)
             pygame.draw.line(gl.display, color, sp, ep, 1)
         if collide["B"]:
-            sp = tuple_add((x, y + h - 1), position)
-            ep = tuple_add((x + w - 1, y + h - 1), position)
+            sp = position + (x, y + h - 1)
+            ep = position + (x + w - 1, y + h - 1)
             pygame.draw.line(gl.display, color, sp, ep, 1)
 
     def check_ground(self, offset, screen):
-        """check_ground(self, offset, screen)"""
+        """
+        Return distance from the bottom of entity's bounding box to the ground.
+        Negative value means the entity BB is already in the ground (collides
+        at the start).
+        Offset moves starting point before check is made.
+        """
         result = (gl.SCREEN_Y * (gl.SPRITE_Y + 1))
         if screen:
             bbox = self.get_bbox()
@@ -158,6 +178,7 @@ class Entity:
                 if me.colliderect(you):
                     collided.append(obj)
             if collided:
+                # sorted by y position - probably not necessary anyway
                 collided.sort(key=lambda o: o.get_top())
                 ctop = collided[0].get_top()
                 # corrected for 2 pixels added above
@@ -165,11 +186,11 @@ class Entity:
         return result
 
     def check_collision(self, offset, screen, ignore_ground):
-        """check_collision(self, offset, screen, ignore_ground)"""
+        """Check collision"""
         collided = False
         if screen:
             me = self.get_bbox().copy()
-            me.move_ip(tuple_add(self.get_position(), offset))
+            me.move_ip(self.get_position() + offset)
             for obj in screen.collisions:
                 you = obj.get_bbox().copy()
                 you.move_ip(obj.get_position())
@@ -190,7 +211,7 @@ class Entity:
         return collided
 
     def check_move(self, offset, screen, ignore_ground=False):
-        """check_move(self, offset, screen, ignore_ground=False)"""
+        """Check move"""
         ox, oy = offset
         assert (ox & oy & 0x01) == 0
         if (ox == 0) and (oy == 0):

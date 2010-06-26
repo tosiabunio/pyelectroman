@@ -1,7 +1,7 @@
 """Main game module"""
 
 import emglobals as gl
-from emglobals import XY, tuple_add
+from emglobals import XY
 import emdata as da
 import emgame as ga
 import emdisplay as di
@@ -83,7 +83,7 @@ class Gameplay:
         pass
 
     def show_info(self):
-        pass
+        di.status_line.show()
 
     def display_screen(self, screen):
         if screen:
@@ -107,8 +107,8 @@ class Gameplay:
                                    self.ground, 5, 1)
 
     def move_player(self, offset):
-        position = tuple_add(gl.player.get_position(), offset)
-        gl.player.set_position(XY.from_tuple(position))
+        position = gl.player.get_position() + offset
+        gl.player.set_position(position)
 
     def on_k_left(self):
         if pygame.key.get_mods() & pygame.KMOD_CTRL:

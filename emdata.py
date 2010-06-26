@@ -2,7 +2,6 @@
 
 import emglobals as gl
 from emglobals import XY
-import emdisplay as di
 import emgame as ga
 import json
 import os
@@ -64,7 +63,9 @@ class EmptySprite(SpriteData):
         h = gl.SPRITE_Y
         self.bbox = pygame.Rect(x, y, w, h)
         pos = (gl.SPRITE_X, gl.SPRITE_Y)
+        # pylint: disable-msg=E1121
         self.image = pygame.Surface(pos)
+        # pylint: enable-msg=E1121
         self.image.set_alpha(0)
         for col in range(4):
             self.collide["LRTB"[col]] = True
@@ -94,14 +95,11 @@ class SpriteSet:
         set_file_path = os.path.join(gl.data_folder, set_name)
         set_file_path = os.path.join(set_file_path, set_name)
         set_file_path += ".ebs"
-        logging.info("Loading sprite data set '%s'", set_file_path)
         jfile = open(set_file_path, "rt")
         self.set = json.load(jfile, encoding='ascii')
         sprites = 0
         for spr in range(64):
             sprites += self.set["used table"][spr]
-        logging.info("Sprite data set loaded: %d sprites", sprites)
-        logging.info("Loading sprite images for set '%s'", set_name)
         for spr in range(64):
             if self.is_used(spr):
                 sprite = SpriteData()
@@ -109,8 +107,8 @@ class SpriteSet:
                 self.sprites.append(sprite)
             else:
                 self.sprites.append(None)
-        logging.info("%d sprite entities created",
-                     64 - self.sprites.count(None))
+        logging.info("Sprite set '%s' loaded: %d sprites",
+                     set_name, 64 - self.sprites.count(None))
 
     def get_status(self, sprite):
         return self.set["status table"][sprite * 8:sprite * 8 + 8]
@@ -137,13 +135,8 @@ class LevelData:
     def load(self, filename):
         level_file_path = os.path.join(gl.data_folder, filename)
         level_file_path += ".ebl"
-        logging.info("Loading level data '%s'", level_file_path)
         jfile = open(level_file_path, "rt")
         self.data = json.load(jfile, encoding='ascii')
-        screens = 0
-        for scr in range(256):
-            screens += self.data["screens"][scr] is not None
-        logging.info("Level data loaded: %d screens", screens)
 
 
 class Level(LevelData):
@@ -282,16 +275,12 @@ class Level(LevelData):
 
     def load(self, filename):
         self.__init__()
-        logging.info("Processing level '%s'", filename)
         LevelData.load(self, filename)
         set1_name = self.data["names"][0]
         set2_name = self.data["names"][1]
         assert set1_name is not "" and set2_name is not ""
-        logging.info("Loading sprite sets")
         self.set1.load(set1_name)
         self.set2.load(set2_name)
-        logging.info("Level processed and sprites loaded")
-        logging.info("Converting screens into sprite groups")
         cntr = 0
         for s in range(256):
             layers = self.data["screens"][s]
@@ -325,7 +314,7 @@ class Level(LevelData):
                 cntr += 1
             else:
                 self.screens.append(None)
-        logging.info("Conversion done: %d screens converted", cntr)
+        logging.info("Level '%s' loaded: %d screens", filename, cntr)
 
     def get_set(self, set_id):
         if set_id == 0:

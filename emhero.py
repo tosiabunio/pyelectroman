@@ -1,14 +1,14 @@
-"""Hero (player's character) code"""
+"""Hero's (player's character) code"""
 
 import emglobals as gl
-from emglobals import XY, tuple_add
+from emglobals import XY
 import emdisplay as di
 import emdata as da
 import emgame as ga
 import logging
 import pygame
 
-FALL_STEP = 2.3
+FALL_STEP = 2
 
 class PlayerEntity(ga.FSM, ga.Entity):
     """
@@ -31,12 +31,15 @@ class PlayerEntity(ga.FSM, ga.Entity):
         self.frames = {}
         self.bbox = pygame.Rect(18, 12, 12, 84)
         self.vstate = "RSTAND"
+        self.frame = 0
         self.orientation = 1 # 0 left, 1 right
-        self.move_vector = [0, 0]
+        self.move_vector = XY(0, 0)
         self.to_ground = 0
 
     def load(self):
-        """Loads player character sprite set and builds reference tables."""
+        """
+        Load player character sprite set and build sprite reference arrays.
+        """
         # load hero sprites
         self.data.load("hero")
         # prepare animation table
@@ -69,12 +72,12 @@ class PlayerEntity(ga.FSM, ga.Entity):
         self.sprites["TELE"] = [(36, 42), (37, 43), (38, 44),
                                  (39, 45), (40, 46), (41, 47)]
         self.frames["TELE"] = len(self.sprites["TELE"])
-        self.enter_state(self.state_stand)
+        self.enter_state(self.state_init)
 
     def display(self):
         """
-        Displays player's character at current position using
-        calculates sprites.
+        Display player's character at current position using
+        calculated sprites taken from the reference arrays.
         """
         position = self.get_position()
         # display top sprite
@@ -82,84 +85,96 @@ class PlayerEntity(ga.FSM, ga.Entity):
         sprite = self.data.get_sprite(sprite)
         gl.display.blit(sprite.image, position)
         # display bottom sprite
-        position = tuple_add(position, (0, gl.SPRITE_Y))
+        position += (0, gl.SPRITE_Y)
         sprite = self.sprites[self.vstate][self.frame][1]
         sprite = self.data.get_sprite(sprite)
         gl.display.blit(sprite.image, position)
 
     def display_collisions(self, color=pygame.Color(255, 128, 255)):
-        """Displays player's character bounding box"""
-        rect = self.bbox.copy()
+        """Display player's character bounding box."""
+        rect = self.get_bbox()
         rect.move_ip(self.get_position())
         pygame.draw.rect(gl.display, color, rect, 1)
 
     def get_bbox(self):
-        """Overrides Entity.get_bbox() - single bbox for all hero sprites"""
-        return self.bbox
+        """Override Entity.get_bbox() - single bbox for all hero sprites."""
+        return self.bbox.copy()
 
     def get_sides(self):
-        """Overrides Entity.get_sides() - collides from all sides"""
+        """Override Entity.get_sides() - collides from all sides."""
         return {"L" : True, "R": True, "T" : True, "B" : True}
 
     def get_top(self):
-        """Overrides Entity.get_top() - single bbox for all hero sprites"""
+        """Override Entity.get_top() - single bbox for all hero sprites."""
         return self.bbox.top + self.get_x()
 
     def get_bottom(self):
-        """Overrides Entity.get_bottom() - single bbox for all hero sprites"""
+        """Override Entity.get_bottom() - single bbox for all hero sprites."""
         return self.get_x() + self.bbox.top + self.bbox.height
 
     def is_touchable(self):
-        """Overrides Entity.is_touchable() - no touch handler"""
+        """Override Entity.is_touchable() - no touching this entity."""
         return False
 
+    def state_init(self, init=False):
+        """Handle state initialization."""
+        self.enter_state(self.state_stand)
+
     def state_fall(self, init=False):
-        """Falling state handler"""
+        """Handle falling state."""
         if init:
             self.vstate = ("LSTAND", "RSTAND")[self.orientation]
             self.frame = 0
-            self.move_vector[1] = int(FALL_STEP)
+            self.move_vector.y = 0
         if self.to_ground == 0:
             self.enter_state(self.state_stand)
+        else:
+            self.move_vector.y += FALL_STEP
+            if (self.to_ground < self.move_vector.y) :
+                self.move_vector.y = self.to_ground
+            position = gl.player.get_position() + self.move_vector
+            gl.player.set_position(position)
 
     def state_move(self, init=False):
-        """Moving state handler"""
+        """Handle moving state."""
         if init:
             self.vstate = ("LWALK", "RWALK")[self.orientation]
             self.frame = 0
-        if self.controller.left:
-            position = tuple_add(gl.player.get_position(), (-2, 0))
-            gl.player.set_position(XY.from_tuple(position))
-        elif self.controller.right:
-            position = tuple_add(gl.player.get_position(), (2, 0))
-            gl.player.set_position(XY.from_tuple(position))
-        elif self.controller.up:
-            position = tuple_add(gl.player.get_position(), (0, -2))
-            gl.player.set_position(XY.from_tuple(position))
-        elif self.controller.down:
-            position = tuple_add(gl.player.get_position(), (0, 2))
-            gl.player.set_position(XY.from_tuple(position))
+        if self.to_ground > 0:
+            self.enter_state(self.state_fall)
+        else:
+            if self.controller.left:
+                position = gl.player.get_position() + (-2, 0)
+                gl.player.set_position(position)
+            elif self.controller.right:
+                position = gl.player.get_position() + (2, 0)
+                gl.player.set_position(position)
+            else:
+                self.enter_state(self.state_stand)
 
     def state_stand(self, init=False):
-        """Standing state handler"""
+        """Handle standing state."""
         if init:
             if self.to_ground > 0:
                 self.enter_state(self.state_fall)
-        else:
-            if self.to_ground > 0:
-                self.enter_state(self.state_fall)
-            self.vstate = ("LSTAND", "RSTAND")[self.orientation]
-            self.frame = 0
-            if self.controller.left or self.controller.right:
-                self.enter_state(self.state_move)
-            if self.controller.up or self.controller.down:
-                self.enter_state(self.state_move)
+        if self.to_ground > 0:
+            self.enter_state(self.state_fall)
+        self.vstate = ("LSTAND", "RSTAND")[self.orientation]
+        self.frame = 0
+        if self.controller.left or self.controller.right:
+            self.enter_state(self.state_move)
 
     def update(self):
-        """Player's character update function"""
+        """Update player behaviors."""
+        # keep track of to ground distance
         self.to_ground = self.check_ground((0, 0), gl.screen)
         di.message((8, 8), "to ground: %d" % self.to_ground)
+        # run FSM for the player's entity
         self.run_fsm()
+        di.status_line.add("%s " % str(self.position))
+        di.status_line.add("Running state: %s " % self.state.__name__)
+
+
 
 # -----------------------------------------------------------------------------
 # test code below

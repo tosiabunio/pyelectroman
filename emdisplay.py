@@ -1,6 +1,7 @@
 """Display module"""
 
 import emglobals as gl
+from emglobals import XY
 import pygame
 import logging
 
@@ -8,9 +9,10 @@ def init_display():
     pygame.init()
     gl.window = pygame.display.set_mode((640, 480), 0, 32)
     pygame.display.set_caption("Electro Man - Python Version")
-    gl.small_font = pygame.font.SysFont("consolas", 10)
-    gl.medium_font = pygame.font.SysFont("consolas", 14)
-    gl.large_font = pygame.font.SysFont("consolas", 18)
+    gl.font["xsmall"] = pygame.font.SysFont("tahoma", 8)
+    gl.font["small"] = pygame.font.SysFont("tahoma", 10)
+    gl.font["normal"] = pygame.font.SysFont("tahoma", 12)
+    gl.font["large"] = pygame.font.SysFont("tahoma", 16)
     subsrect = pygame.Rect(gl.OFFSET_X, gl.OFFSET_Y,
                            gl.SCREEN_X * gl.SPRITE_X,
                            gl.SCREEN_Y * gl.SPRITE_Y)
@@ -32,24 +34,49 @@ def show():
 def message(position, txt, font=None, antialias=False,
             color=pygame.Color(255, 255, 255)):
     """
-    displays message in the main window (whole screen)
+    Display message on the screen. Uses entire surface.
 
-    position - (x, y)
+    position - (x, y) (also XY(x, y))
     txt - string (can contain newlines)
     font - pygame.Font
     antialias - True or False
     color - pygame.Color
 
-    returns position of next line as (x, y)
+    Return position of next line as XY(x, y).
     """
-    cpos = position
-    font = gl.medium_font if font is None else font
+    if isinstance(position, XY):
+        cpos = position.as_tuple()
+    else:
+        cpos = position
+    font = gl.font["small"] if font is None else font
     lines = txt.split('\n')
     for line in lines:
         lsurf = font.render(line, antialias, color)
         gl.window.blit(lsurf, cpos)
-        cpos = (cpos[0], cpos[1] + int (font.get_height() * 1.05))
+        cpos = XY(cpos[0], cpos[1] + int (font.get_height() * 1.05))
     return cpos
+
+class StatusLine:
+    """
+    Handle status line display.
+    """
+    __single = None
+    def __init__(self):
+        if StatusLine.__single:
+            raise TypeError, "Only one instance is allowed!"
+        StatusLine.__single = self
+        self.message = ""
+        self.font = gl.font["xsmall"]
+        self.position = XY(8, 465)
+
+    def add(self, text):
+        self.message += text
+
+    def show(self):
+        message(self.position, self.message, self.font)
+        self.message = ""
+
+status_line = StatusLine()
 
 # -----------------------------------------------------------------------------
 # test code below
