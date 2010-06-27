@@ -1,7 +1,6 @@
 """Main game module"""
 
 import emglobals as gl
-from emglobals import XY
 import emdata as da
 import emgame as ga
 import emdisplay as di

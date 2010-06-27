@@ -2,7 +2,6 @@
 
 import emglobals as gl
 from emglobals import XY
-import emdisplay as di
 import pygame
 import logging
 

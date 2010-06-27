@@ -5,10 +5,10 @@ from emglobals import XY
 import emdisplay as di
 import emdata as da
 import emgame as ga
-import logging
 import pygame
 
 FALL_STEP = 2
+MAX_FALL = 24
 MOVE_STEP = 8
 
 class PlayerEntity(ga.FSM, ga.Entity):
@@ -119,7 +119,8 @@ class PlayerEntity(ga.FSM, ga.Entity):
 
     def state_init(self, init=False):
         """Handle state initialization."""
-        self.enter_state(self.state_stand)
+        if init:
+            self.enter_state(self.state_stand)
 
     def state_fall(self, init=False):
         """Handle falling state."""
@@ -130,7 +131,8 @@ class PlayerEntity(ga.FSM, ga.Entity):
         if self.to_ground == 0:
             self.enter_state(self.state_stand)
         else:
-            self.move_vector.y += FALL_STEP
+            self.move_vector.y += FALL_STEP \
+                if self.move_vector.y < MAX_FALL else 0
             if (self.to_ground < self.move_vector.y) :
                 self.move_vector.y = self.to_ground
             self.move()
@@ -166,21 +168,44 @@ class PlayerEntity(ga.FSM, ga.Entity):
             self.enter_state(self.state_move)
 
     def move(self):
-        position = gl.player.get_position() + self.move_vector
-        if self.get_bottom() > gl.MAX_Y:
-            cs = gl.screen_manager.get_current_screen()
+        """Move player's entitu"""
+        pos = self.get_position()
+        move_to = pos + self.move_vector
+        self.set_position(move_to)
+
+    def check_bounds(self):
+        """Check screen boundaries and change screens if neccessary."""
+        bbox = self.get_bbox()
+        pos = self.get_position()
+        below = self.get_bottom() - gl.MAX_Y
+        cs = gl.screen_manager.get_current_screen()
+        if below > 0:
             cs += 16 if cs < 240 else -240
             gl.screen_manager.change_screen(cs)
-        else:
-            gl.player.set_position(position)
+            pos.y = - (bbox.y + bbox.h - below)
+            self.set_position(pos)
+        center = bbox.centerx + pos.x
+        cs = gl.screen_manager.get_current_screen()
+        if center < 0:
+            cs -= 1 if cs > 0 else -255
+            gl.screen_manager.change_screen(cs)
+            pos.x = gl.MAX_X + pos.x
+            self.set_position(pos)
+        elif center > gl.MAX_X:
+            cs += 1 if cs < 255 else -255
+            gl.screen_manager.change_screen(cs)
+            pos.x = gl.MAX_X - pos.x
+            self.set_position(pos)
 
     def update(self):
         """Update player behaviors."""
         # keep track of to ground distance
-        self.to_ground = self.check_ground((0, 0), gl.screen)
+        self.to_ground = self.check_ground((0, 0),
+                                           gl.screen_manager.get_screen())
         di.message((8, 8), "to ground: %d" % self.to_ground)
         # run FSM for the player's entity
         self.run_fsm()
+        self.check_bounds()
         di.status_line.add("%s " % str(self.position))
         di.status_line.add("Running state: %s " % self.state.__name__)
 

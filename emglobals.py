@@ -102,6 +102,9 @@ class XY:
         """Return human-readable representation."""
         return "XY(%d, %d)" % (self.x, self.y)
 
+    def _repr__(self):
+        return "<XY(%d, %d)>" % (self.x, self.y)
+
     def copy(self):
         """Return copy of self."""
         return copy.copy(self)
