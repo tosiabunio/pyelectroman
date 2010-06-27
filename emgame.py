@@ -242,6 +242,33 @@ class Entity:
         # pylint: enable-msg=W0612
         return last_not_colliding
 
+class ScreenManager:
+    __single = None
+    def __init__(self):
+        if ScreenManager.__single:
+            raise TypeError, "Only one instance is allowed!"
+        ScreenManager.__single = self
+        self.current_screen = 0 # current screen
+        self.screens = None # all screens
+        self.screen = None # current screen definition
+
+    def add_all_screens(self, screens):
+        self.screens = screens
+
+    def get_screen(self):
+        return self.screen
+
+    def get_all_screens(self):
+        return self.screens
+
+    def get_current_screen(self):
+        return self.current_screen
+
+    def change_screen(self, screen_number):
+        if (screen_number < 0) or (screen_number > 255):
+            raise ValueError, "Screen number out of range (0, 255)."
+        self.current_screen = screen_number
+        self.screen = self.screens[self.current_screen]
 
 class ActiveCheckpoint:
     __single = None

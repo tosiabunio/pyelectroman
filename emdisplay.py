@@ -13,9 +13,7 @@ def init_display():
     gl.font["small"] = pygame.font.SysFont("tahoma", 10)
     gl.font["normal"] = pygame.font.SysFont("tahoma", 12)
     gl.font["large"] = pygame.font.SysFont("tahoma", 16)
-    subsrect = pygame.Rect(gl.OFFSET_X, gl.OFFSET_Y,
-                           gl.SCREEN_X * gl.SPRITE_X,
-                           gl.SCREEN_Y * gl.SPRITE_Y)
+    subsrect = pygame.Rect(gl.OFFSET_X, gl.OFFSET_Y, gl.MAX_X, gl.MAX_Y)
     gl.display = gl.window.subsurface(subsrect)
 
 
@@ -44,16 +42,12 @@ def message(position, txt, font=None, antialias=False,
 
     Return position of next line as XY(x, y).
     """
-    if isinstance(position, XY):
-        cpos = position.as_tuple()
-    else:
-        cpos = position
     font = gl.font["small"] if font is None else font
     lines = txt.split('\n')
     for line in lines:
         lsurf = font.render(line, antialias, color)
-        gl.window.blit(lsurf, cpos)
-        cpos = XY(cpos[0], cpos[1] + int (font.get_height() * 1.05))
+        gl.window.blit(lsurf, position)
+        cpos = XY(position[0], position[1] + int (font.get_height() * 1.05))
     return cpos
 
 class StatusLine:

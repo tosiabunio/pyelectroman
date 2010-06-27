@@ -18,12 +18,11 @@ class Gameplay:
         Gameplay.__single = self
         # sigleton protection code ends here
         gl.level = da.Level()
-        gl.current_screen = 0
-        gl.current_level = 0
         self.ground = None
         self.loop = True
         self.screens_map = None
         self.controller = ga.Controller()
+        gl.screen_manager = ga.ScreenManager()
         gl.player = pl.PlayerEntity(self.controller)
         self.num_collisions = 0
         self.num_touched = 0
@@ -50,8 +49,9 @@ class Gameplay:
         # pylint: enable-msg=E1121
         FULL = 0x33AA33
         EMPTY = 0x333333
+        screens = gl.screen_manager.get_all_screens()
         for scr in range(256):
-            if gl.screens[scr]:
+            if screens[scr]:
                 pixels[(scr % 16) * 2 + 0][(scr / 16) * 2 + 0] = FULL
                 pixels[(scr % 16) * 2 + 1][(scr / 16) * 2 + 0] = FULL
                 pixels[(scr % 16) * 2 + 0][(scr / 16) * 2 + 1] = FULL
@@ -65,7 +65,7 @@ class Gameplay:
         return screens_map
 
     def show_map(self, pos):
-        scr = gl.current_screen
+        scr = gl.screen_manager.get_current_screen()
         CURRENT = 0xFFFFFF
         # pylint: disable-msg=E1121
         screens_map_copy = pygame.Surface((32, 32))
@@ -111,29 +111,37 @@ class Gameplay:
         gl.player.set_position(position)
 
     def on_k_left(self):
+        cs = gl.screen_manager.get_current_screen()
         if pygame.key.get_mods() & pygame.KMOD_CTRL:
-            gl.current_screen -= 1 if gl.current_screen > 0 else -255
+            cs -= 1 if cs > 0 else -255
+            gl.screen_manager.change_screen(cs)
         elif pygame.key.get_mods() & pygame.KMOD_SHIFT:
             if gl.player.get_x() >= 0:
                 self.move_player((-gl.SPRITE_X, 0))
 
     def on_k_right(self):
+        cs = gl.screen_manager.get_current_screen()
         if pygame.key.get_mods() & pygame.KMOD_CTRL:
-            gl.current_screen += 1 if gl.current_screen < 255 else -255
+            cs += 1 if cs < 255 else -255
+            gl.screen_manager.change_screen(cs)
         elif pygame.key.get_mods() & pygame.KMOD_SHIFT:
-            if gl.player.get_x() <= (gl.SCREEN_X * gl.SPRITE_X):
+            if gl.player.get_x() <= (gl.MAX_X):
                 self.move_player((gl.SPRITE_X, 0))
 
     def on_k_up(self):
+        cs = gl.screen_manager.get_current_screen()
         if pygame.key.get_mods() & pygame.KMOD_CTRL:
-            gl.current_screen -= 16 if gl.current_screen > 15 else -240
+            cs -= 16 if cs > 15 else -240
+            gl.screen_manager.change_screen(cs)
         elif pygame.key.get_mods() & pygame.KMOD_SHIFT:
             if gl.player.get_y() >= -2 * gl.SPRITE_Y:
                 self.move_player((0, -gl.SPRITE_Y))
 
     def on_k_down(self):
+        cs = gl.screen_manager.get_current_screen()
         if pygame.key.get_mods() & pygame.KMOD_CTRL:
-            gl.current_screen += 16 if gl.current_screen < 240 else -240
+            cs += 16 if cs < 240 else -240
+            gl.screen_manager.change_screen(cs)
         elif pygame.key.get_mods() & pygame.KMOD_SHIFT:
             if gl.player.get_y() <= ((gl.SCREEN_Y + 2) * gl.SPRITE_Y):
                 self.move_player((0, gl.SPRITE_Y))
@@ -185,8 +193,8 @@ class Gameplay:
 
     def load_level(self):
         gl.level.load(gl.level_names[gl.current_level])
-        gl.screens = gl.level.get_screens()
-        gl.current_screen = gl.level.get_start()
+        gl.screen_manager.add_all_screens(gl.level.get_screens())
+        gl.screen_manager.change_screen(2)
         self.screens_map = self.init_map()
 
     def loop_begin(self):
@@ -205,7 +213,7 @@ class Gameplay:
         self.controller.update()
 
     def loop_run(self):
-        gl.screen = gl.level.get_screen(gl.current_screen)
+        gl.screen = gl.screen_manager.get_screen()
         gl.player.update()
 
     def loop_end(self):

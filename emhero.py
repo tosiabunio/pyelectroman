@@ -9,6 +9,7 @@ import logging
 import pygame
 
 FALL_STEP = 2
+MOVE_STEP = 8
 
 class PlayerEntity(ga.FSM, ga.Entity):
     """
@@ -106,11 +107,11 @@ class PlayerEntity(ga.FSM, ga.Entity):
 
     def get_top(self):
         """Override Entity.get_top() - single bbox for all hero sprites."""
-        return self.bbox.top + self.get_x()
+        return self.get_y() + self.bbox.top
 
     def get_bottom(self):
         """Override Entity.get_bottom() - single bbox for all hero sprites."""
-        return self.get_x() + self.bbox.top + self.bbox.height
+        return self.get_y() + self.bbox.top + self.bbox.height
 
     def is_touchable(self):
         """Override Entity.is_touchable() - no touching this entity."""
@@ -132,8 +133,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
             self.move_vector.y += FALL_STEP
             if (self.to_ground < self.move_vector.y) :
                 self.move_vector.y = self.to_ground
-            position = gl.player.get_position() + self.move_vector
-            gl.player.set_position(position)
+            self.move()
 
     def state_move(self, init=False):
         """Handle moving state."""
@@ -144,17 +144,18 @@ class PlayerEntity(ga.FSM, ga.Entity):
             self.enter_state(self.state_fall)
         else:
             if self.controller.left:
-                position = gl.player.get_position() + (-2, 0)
-                gl.player.set_position(position)
+                self.move_vector.x = -MOVE_STEP
+                self.move()
             elif self.controller.right:
-                position = gl.player.get_position() + (2, 0)
-                gl.player.set_position(position)
+                self.move_vector.x = MOVE_STEP
+                self.move()
             else:
                 self.enter_state(self.state_stand)
 
     def state_stand(self, init=False):
         """Handle standing state."""
         if init:
+            self.move_vector = XY(0, 0)
             if self.to_ground > 0:
                 self.enter_state(self.state_fall)
         if self.to_ground > 0:
@@ -163,6 +164,15 @@ class PlayerEntity(ga.FSM, ga.Entity):
         self.frame = 0
         if self.controller.left or self.controller.right:
             self.enter_state(self.state_move)
+
+    def move(self):
+        position = gl.player.get_position() + self.move_vector
+        if self.get_bottom() > gl.MAX_Y:
+            cs = gl.screen_manager.get_current_screen()
+            cs += 16 if cs < 240 else -240
+            gl.screen_manager.change_screen(cs)
+        else:
+            gl.player.set_position(position)
 
     def update(self):
         """Update player behaviors."""

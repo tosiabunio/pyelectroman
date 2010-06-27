@@ -24,6 +24,8 @@ SPRITE_X = 48  # size in pixels
 SPRITE_Y = 48  # size in pixels
 SCREEN_X = 13  # size in sprites
 SCREEN_Y = 8   # size in sprites
+MAX_X = SPRITE_X * SCREEN_X # screen size in pixels
+MAX_Y = SPRITE_Y * SCREEN_Y # screen size in pixels
 
 OFFSET_X = 8   # to center 13x8 sprites screen in 640x480 window
 OFFSET_Y = 48  # to center 13x8 sprites screen in 640x480 window
@@ -41,9 +43,7 @@ level = None # currently loaded level
 
 # gameplay related globals
 
-screens = None # all level screen defintions
-current_screen = 0 # current screen number
-screen = None # current screen definition
+screen_manager = None # screen manager
 
 loop_main_loop = True # loop the main gameplay loop
 player = None
@@ -102,10 +102,6 @@ class XY:
         """Return human-readable representation."""
         return "XY(%d, %d)" % (self.x, self.y)
 
-    def as_tuple(self):
-        """Return object as (x, y) tuple."""
-        return (self.x, self.y)
-
     def copy(self):
         """Return copy of self."""
         return copy.copy(self)
@@ -122,9 +118,9 @@ class XY:
     @classmethod
     def from_self(cls, xy):
         """Initialize XY object from other XY object."""
-        obj = cls()
-        cls.x = xy.x
-        cls.y = xy.y
+        if not isinstance(xy, XY):
+            raise ValueError, "XY() object required."
+        obj = xy.copy()
         return obj
 
 # other global functions
