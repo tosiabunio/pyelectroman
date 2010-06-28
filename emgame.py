@@ -239,7 +239,7 @@ class Entity:
             else:
                 break
         # pylint: enable-msg=W0612
-        return last_not_colliding
+        return XY.from_tuple(last_not_colliding)
 
 class ScreenManager:
     __single = None

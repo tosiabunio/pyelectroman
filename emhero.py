@@ -169,9 +169,16 @@ class PlayerEntity(ga.FSM, ga.Entity):
 
     def move(self):
         """Move player's entitu"""
+        # check_move(self, offset, screen, ignore_ground=False):
+        move = self.check_move(self.move_vector,
+                               gl.screen_manager.get_screen(), True)
         pos = self.get_position()
-        move_to = pos + self.move_vector
+        move_to = pos + move
         self.set_position(move_to)
+        if abs(move.x) < abs(self.move_vector.x):
+            self.move_vector.x = 0
+
+
 
     def check_bounds(self):
         """Check screen boundaries and change screens if neccessary."""
