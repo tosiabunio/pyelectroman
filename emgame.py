@@ -13,9 +13,10 @@ class Controller:
     Joystick and gamepad controllers planned for the future.
     """
     __single = None
+
     def __init__(self):
         if Controller.__single:
-            raise TypeError, "Only one instance is allowed!"
+            raise TypeError("Only one instance is allowed!")
         Controller.__single = self
         self.left = False
         self.right = False
@@ -56,13 +57,13 @@ class FSM:
         self.next_state = None
         self.state = lambda: None
 
-    def enter_state(self, state):
+    def switch_state(self, state):
         """Enter a new state immediately."""
         logging.debug("Entering state: %s", state.__name__)
         self.state = state
         self.state(True)
 
-    def exit_state(self, state):
+    def new_state(self, state):
         """Change to a new state in next frame."""
         self.next_state = state
 
@@ -71,7 +72,7 @@ class FSM:
         if self.next_state:
             state = self.next_state
             self.next_state = None
-            self.enter(state)
+            self.switch_state(state)
         else:
             self.state()
 
@@ -82,7 +83,7 @@ class Entity:
         self.sprites = sprites
         self.initial = initial
         if not isinstance(position, XY):
-            raise ValueError, "Entity position must by XY() instance."
+            raise ValueError("Entity position must by XY() instance.")
         self.position = position
         self.frame = 0
         self.delay = 0
@@ -91,7 +92,7 @@ class Entity:
     def set_position(self, position):
         """Set entity position"""
         if not isinstance(position, XY):
-            raise ValueError, "Entity position must by XY() instance."
+            raise ValueError("Entity position must by XY() instance.")
         # create a copy not just reference
         self.position = XY.from_self(position)
 
@@ -241,15 +242,17 @@ class Entity:
         # pylint: enable-msg=W0612
         return XY.from_tuple(last_not_colliding)
 
+
 class ScreenManager:
     __single = None
+
     def __init__(self):
         if ScreenManager.__single:
-            raise TypeError, "Only one instance is allowed!"
+            raise TypeError("Only one instance is allowed!")
         ScreenManager.__single = self
-        self.current_screen = 0 # current screen
-        self.screens = None # all screens
-        self.screen = None # current screen definition
+        self.current_screen = 0  # current screen
+        self.screens = None  # all screens
+        self.screen = None  # current screen definition
 
     def add_all_screens(self, screens):
         self.screens = screens
@@ -265,15 +268,17 @@ class ScreenManager:
 
     def change_screen(self, screen_number):
         if (screen_number < 0) or (screen_number > 255):
-            raise ValueError, "Screen number out of range (0, 255)."
+            raise ValueError("Screen number out of range (0, 255).")
         self.current_screen = screen_number
         self.screen = self.screens[self.current_screen]
 
+
 class ActiveCheckpoint:
     __single = None
+
     def __init__(self):
         if ActiveCheckpoint.__single:
-            raise TypeError, "Only one instance is allowed!"
+            raise TypeError("Only one instance is allowed!")
         ActiveCheckpoint.__single = self
         # sigleton protection code ends here
         self.level = 0

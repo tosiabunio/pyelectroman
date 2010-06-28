@@ -9,11 +9,13 @@ import sys
 import pygame
 import logging
 
+
 class Gameplay:
     __single = None
+
     def __init__(self):
         if Gameplay.__single:
-            raise TypeError, "Only one instance is allowed!"
+            raise TypeError("Only one instance is allowed!")
         Gameplay.__single = self
         # sigleton protection code ends here
         gl.level = da.Level()
@@ -236,25 +238,26 @@ class Gameplay:
             self.loop_events()
             self.loop_run()
             self.loop_end()
-            clock.tick(20) # keep constant frame rate (20fps)
+            clock.tick(20)  # keep constant frame rate (20fps)
 
     def stop(self):
         pass
 
+
 class Game:
     __single = None
+
     def __init__(self):
         if Game.__single:
-            raise TypeError, "Only one instance is allowed!"
+            raise TypeError("Only one instance is allowed!")
         Game.__single = self
         # sigleton protection code ends here
         if gl.log_filename:
             logging.basicConfig(level=logging.DEBUG)
         else:
             logging.basicConfig(filename=gl.log_filename,
-                                filemode="w",
-                                format=\
-                                '%(levelname)s: %(funcName)s(): %(message)s',
+                                filemode="w", format=(
+                                '%(levelname)s: %(funcName)s(): %(message)s'),
                                 level=logging.DEBUG)
 
     def init(self):
@@ -263,6 +266,7 @@ class Game:
     def quit(self):
         di.quit_display()
         sys.exit()
+
 
 def main():
     game = Game()

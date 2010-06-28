@@ -16,18 +16,18 @@ font = {"xsmall": None,
 small_font = None
 medium_font = None
 large_font = None
-display = None # whole window (screen) surface
-window = None # gameplay window subsurface
+display = None  # whole window (screen) surface
+window = None  # gameplay window subsurface
 
 # display related globals
 SPRITE_X = 48  # size in pixels
 SPRITE_Y = 48  # size in pixels
 SCREEN_X = 13  # size in sprites
 SCREEN_Y = 8   # size in sprites
-MAX_X = SPRITE_X * SCREEN_X # screen size in pixels
-MAX_Y = SPRITE_Y * SCREEN_Y # screen size in pixels
+MAX_X = SPRITE_X * SCREEN_X  # screen size in pixels
+MAX_Y = SPRITE_Y * SCREEN_Y  # screen size in pixels
 
-OFFSET_X = 8   # to center 13x8 sprites screen in 640x480 window
+OFFSET_X = 8  # to center 13x8 sprites screen in 640x480 window
 OFFSET_Y = 48  # to center 13x8 sprites screen in 640x480 window
 
 DISPLAY_OFFSET = (OFFSET_X, OFFSET_Y)
@@ -38,14 +38,14 @@ show_collisions = False
 data_folder = r"data"  # defaul data folder
 level_names = ["elek", "koryt", "mieszk", "magaz",
                "fiolet", "10x10", "sluzy", "widok"]
-current_level = 0 # current level number
-level = None # currently loaded level
+current_level = 0  # current level number
+level = None  # currently loaded level
 
 # gameplay related globals
 
-screen_manager = None # screen manager
+screen_manager = None  # screen manager
 
-loop_main_loop = True # loop the main gameplay loop
+loop_main_loop = True  # loop the main gameplay loop
 player = None
 active_checkpoint = None
 
@@ -55,14 +55,15 @@ log_filename = "em.log"  # empty string disables logging to file
 
 # global classes
 
+
 class XY:
     """Class to keep x, y positions."""
     def __init__(self, x=0, y=0):
         if not isinstance(x, int):
-            raise ValueError, "x must be an int."
+            raise ValueError("x must be an int.")
         self.x = x
         if not isinstance(y, int):
-            raise ValueError, "y must be an int."
+            raise ValueError("y must be an int.")
         self.y = y
 
     def __getitem__(self, index):
@@ -72,7 +73,7 @@ class XY:
         elif index == 1:
             return self.y
         else:
-            raise IndexError, "Index out of range!"
+            raise IndexError("Index out of range!")
 
     def __setitem__(self, index, value):
         """Set x from [0] and y from [1]."""
@@ -81,7 +82,7 @@ class XY:
         elif index == 1:
             self.y = value
         else:
-            raise IndexError, "Index out of range!"
+            raise IndexError("Index out of range!")
 
     def __len__(self):
         """Always return 2 as length."""
@@ -92,8 +93,8 @@ class XY:
         if isinstance(other, tuple) and len(other) == 2:
             other = XY.from_tuple(other)
         if not isinstance(other, XY):
-            raise NotImplementedError, \
-                  "Only XY() or (x, y) addition implemented."
+            raise NotImplementedError(
+                "Only XY() or (x, y) addition implemented.")
         x = self.x + other.x
         y = self.y + other.y
         return XY(x, y)
@@ -122,7 +123,7 @@ class XY:
     def from_self(cls, xy):
         """Initialize XY object from other XY object."""
         if not isinstance(xy, XY):
-            raise ValueError, "XY() object required."
+            raise ValueError("XY() object required.")
         obj = xy.copy()
         return obj
 
@@ -152,12 +153,14 @@ def rand():
     rand_seed = MULTIPLIER * rand_seed + INCREMENT
     return (rand_seed >> 16) & 0x7FFFF
 
+
 def random(num):
     """ #define random(num)(int)(((long)rand()*(num))/(RAND_MAX+1)) """
     return int((rand() * num) / (0x80000))
 
 # -----------------------------------------------------------------------------
 # test code below
+
 
 def main():
     p1 = XY()

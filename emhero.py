@@ -11,6 +11,7 @@ FALL_STEP = 2
 MAX_FALL = 24
 MOVE_STEP = 8
 
+
 class PlayerEntity(ga.FSM, ga.Entity):
     """
     Player's entity class, extends ga.Entity.
@@ -19,9 +20,10 @@ class PlayerEntity(ga.FSM, ga.Entity):
     Requires supplying ga.Controller class for player's input.
     """
     __single = None
+
     def __init__(self, controller):
         if PlayerEntity.__single:
-            raise TypeError, "Only one instance is allowed!"
+            raise TypeError("Only one instance is allowed!")
         PlayerEntity.__single = self
         # sigleton protection code ends here
         ga.Entity.__init__(self, [da.EmptySprite()], XY(0, 0))
@@ -33,7 +35,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
         self.bbox = pygame.Rect(18, 12, 12, 84)
         self.vstate = "RSTAND"
         self.frame = 0
-        self.orientation = 1 # 0 left, 1 right
+        self.orientation = 1  # 0 left, 1 right
         self.move_vector = XY(0, 0)
         self.to_ground = 0
 
@@ -64,16 +66,16 @@ class PlayerEntity(ga.FSM, ga.Entity):
         self.sprites["TURN"] = [(26, 29), (27, 30), (28, 31)]
         self.frames["TURN"] = len(self.sprites["TURN"])
         # crouching left after jump
-        self.sprites["LCROUCH"] = [(32, 33)]
-        self.frames["LCROUCH"] = len(self.sprites["LCROUCH"])
+        self.sprites["LLAND"] = [(32, 33)]
+        self.frames["LLAND"] = len(self.sprites["LLAND"])
         # crouching right after jump
-        self.sprites["RCROUCH"] = [(34, 35)]
-        self.frames["RCROUCH"] = len(self.sprites["RCROUCH"])
+        self.sprites["RLAND"] = [(34, 35)]
+        self.frames["RLAND"] = len(self.sprites["RLAND"])
         # entering teleport (reverse for leaving)
         self.sprites["TELE"] = [(36, 42), (37, 43), (38, 44),
                                  (39, 45), (40, 46), (41, 47)]
         self.frames["TELE"] = len(self.sprites["TELE"])
-        self.enter_state(self.state_init)
+        self.switch_state(self.state_init)
 
     def display(self):
         """
@@ -103,7 +105,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
 
     def get_sides(self):
         """Override Entity.get_sides() - collides from all sides."""
-        return {"L" : True, "R": True, "T" : True, "B" : True}
+        return {"L": True, "R": True, "T": True, "B": True}
 
     def get_top(self):
         """Override Entity.get_top() - single bbox for all hero sprites."""
@@ -120,7 +122,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
     def state_init(self, init=False):
         """Handle state initialization."""
         if init:
-            self.enter_state(self.state_stand)
+            self.switch_state(self.state_stand)
 
     def state_fall(self, init=False):
         """Handle falling state."""
@@ -129,13 +131,22 @@ class PlayerEntity(ga.FSM, ga.Entity):
             self.frame = 0
             self.move_vector.y = 0
         if self.to_ground == 0:
-            self.enter_state(self.state_stand)
+            self.switch_state(self.state_land)
         else:
             self.move_vector.y += FALL_STEP \
                 if self.move_vector.y < MAX_FALL else 0
-            if (self.to_ground < self.move_vector.y) :
+            if (self.to_ground < self.move_vector.y):
                 self.move_vector.y = self.to_ground
             self.move()
+
+    def state_land(self, init=False):
+        if init:
+            self.counter = 2
+        self.vstate = ("LLAND", "RLAND")[self.orientation]
+        self.frame = 0
+        self.counter -= 1
+        if self.counter == 0:
+            self.new_state(self.state_stand)
 
     def state_move(self, init=False):
         """Handle moving state."""
@@ -143,7 +154,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
             self.vstate = ("LWALK", "RWALK")[self.orientation]
             self.frame = 0
         if self.to_ground > 0:
-            self.enter_state(self.state_fall)
+            self.switch_state(self.state_fall)
         else:
             if self.controller.left:
                 self.move_vector.x = -MOVE_STEP
@@ -152,20 +163,20 @@ class PlayerEntity(ga.FSM, ga.Entity):
                 self.move_vector.x = MOVE_STEP
                 self.move()
             else:
-                self.enter_state(self.state_stand)
+                self.switch_state(self.state_stand)
 
     def state_stand(self, init=False):
         """Handle standing state."""
         if init:
             self.move_vector = XY(0, 0)
             if self.to_ground > 0:
-                self.enter_state(self.state_fall)
+                self.switch_state(self.state_fall)
+            self.vstate = ("LSTAND", "RSTAND")[self.orientation]
+            self.frame = 0
         if self.to_ground > 0:
-            self.enter_state(self.state_fall)
-        self.vstate = ("LSTAND", "RSTAND")[self.orientation]
-        self.frame = 0
+            self.switch_state(self.state_fall)
         if self.controller.left or self.controller.right:
-            self.enter_state(self.state_move)
+            self.switch_state(self.state_move)
 
     def move(self):
         """Move player's entitu"""
@@ -177,8 +188,6 @@ class PlayerEntity(ga.FSM, ga.Entity):
         self.set_position(move_to)
         if abs(move.x) < abs(self.move_vector.x):
             self.move_vector.x = 0
-
-
 
     def check_bounds(self):
         """Check screen boundaries and change screens if neccessary."""
@@ -216,10 +225,9 @@ class PlayerEntity(ga.FSM, ga.Entity):
         di.status_line.add("%s " % str(self.position))
         di.status_line.add("Running state: %s " % self.state.__name__)
 
-
-
 # -----------------------------------------------------------------------------
 # test code below
+
 
 def main():
     pass

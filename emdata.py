@@ -8,6 +8,7 @@ import os
 import logging
 import pygame
 
+
 class SpriteData:
     def __init__(self):
         self.image = None
@@ -305,7 +306,8 @@ class Level(LevelData):
                                         screen.collisions.append(entity)
                                     elif activity & 0x80:
                                         entity = \
-                                        self.__get_active_entity(sidx, position)
+                                        self.__get_active_entity(sidx,
+                                                                 position)
                                         screen.active.append(entity)
                                     else:
                                         entity = ga.Entity([sprite], position)

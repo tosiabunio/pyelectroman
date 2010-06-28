@@ -5,6 +5,7 @@ from emglobals import XY
 import pygame
 import logging
 
+
 def init_display():
     pygame.init()
     gl.window = pygame.display.set_mode((640, 480), 0, 32)
@@ -47,17 +48,19 @@ def message(position, txt, font=None, antialias=False,
     for line in lines:
         lsurf = font.render(line, antialias, color)
         gl.window.blit(lsurf, position)
-        cpos = XY(position[0], position[1] + int (font.get_height() * 1.05))
+        cpos = XY(position[0], position[1] + int(font.get_height() * 1.05))
     return cpos
+
 
 class StatusLine:
     """
     Handle status line display.
     """
     __single = None
+
     def __init__(self):
         if StatusLine.__single:
-            raise TypeError, "Only one instance is allowed!"
+            raise TypeError("Only one instance is allowed!")
         StatusLine.__single = self
         self.message = ""
         self.font = gl.font["xsmall"]
@@ -70,10 +73,12 @@ class StatusLine:
         message(self.position, self.message, self.font)
         self.message = ""
 
+
 status_line = StatusLine()
 
 # -----------------------------------------------------------------------------
 # test code below
+
 
 def main():
     logging.basicConfig(level=logging.DEBUG,
