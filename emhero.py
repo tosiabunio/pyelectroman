@@ -131,7 +131,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
             self.frame = 0
             self.move_vector.y = 0
         if self.to_ground == 0:
-            self.switch_state(self.state_land)
+            return self.switch_state(self.state_land)
         else:
             self.move_vector.y += FALL_STEP \
                 if self.move_vector.y < MAX_FALL else 0
@@ -146,7 +146,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
         self.frame = 0
         self.counter -= 1
         if self.counter == 0:
-            self.new_state(self.state_stand)
+            return self.new_state(self.state_stand)
 
     def state_move(self, init=False):
         """Handle moving state."""
@@ -154,16 +154,42 @@ class PlayerEntity(ga.FSM, ga.Entity):
             self.vstate = ("LWALK", "RWALK")[self.orientation]
             self.frame = 0
         if self.to_ground > 0:
-            self.switch_state(self.state_fall)
+            return self.switch_state(self.state_fall)
         else:
             if self.controller.left:
+                if self.orientation == 1:
+                    return self.switch_state(self.state_turn)
                 self.move_vector.x = -MOVE_STEP
-                self.move()
             elif self.controller.right:
+                if self.orientation == 0:
+                    return self.switch_state(self.state_turn)
                 self.move_vector.x = MOVE_STEP
-                self.move()
             else:
-                self.switch_state(self.state_stand)
+                return self.switch_state(self.state_stand)
+            if self.move():
+                self.frame = (self.frame + 1) % self.frames[self.vstate]
+            else:
+                self.vstate = ("LSTAND", "RSTAND")[self.orientation]
+                self.frame = 0
+
+
+    def state_turn(self, init=False):
+        if init:
+            self.orientation = 1 - self.orientation
+            self.vstate = "TURN"
+            if self.orientation == 1:
+                self.frame = 0
+                self.counter = 2
+            else:
+                self.frame = 2
+                self.counter = 2
+        else:
+            self.counter -= 1
+            if self.orientation == 1:
+                self.frame += 1
+            else:
+                self.frame -= 1
+            return self.new_state(self.state_move)
 
     def state_stand(self, init=False):
         """Handle standing state."""
@@ -174,9 +200,9 @@ class PlayerEntity(ga.FSM, ga.Entity):
             self.vstate = ("LSTAND", "RSTAND")[self.orientation]
             self.frame = 0
         if self.to_ground > 0:
-            self.switch_state(self.state_fall)
+            return self.switch_state(self.state_fall)
         if self.controller.left or self.controller.right:
-            self.switch_state(self.state_move)
+            return self.switch_state(self.state_move)
 
     def move(self):
         """Move player's entitu"""
@@ -188,6 +214,9 @@ class PlayerEntity(ga.FSM, ga.Entity):
         self.set_position(move_to)
         if abs(move.x) < abs(self.move_vector.x):
             self.move_vector.x = 0
+            return False
+        else:
+            return True
 
     def check_bounds(self):
         """Check screen boundaries and change screens if neccessary."""
