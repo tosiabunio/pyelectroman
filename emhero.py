@@ -6,11 +6,12 @@ import emdisplay as di
 import emdata as da
 import emgame as ga
 import pygame
+import logging
 
+MOVE_STEP = 8
 FALL_STEP = 2
 MAX_FALL = 24
-MOVE_STEP = 8
-
+MAX_JUMP = -21
 
 class PlayerEntity(ga.FSM, ga.Entity):
     """
@@ -33,7 +34,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
         self.sprites = {}
         self.frames = {}
         self.bbox = pygame.Rect(18, 12, 12, 84)
-        self.vstate = "RSTAND"
+        self.anim = "RSTAND"
         self.frame = 0
         self.orientation = 1  # 0 left, 1 right
         self.move_vector = XY(0, 0)
@@ -71,6 +72,12 @@ class PlayerEntity(ga.FSM, ga.Entity):
         # crouching right after jump
         self.sprites["RLAND"] = [(34, 35)]
         self.frames["RLAND"] = len(self.sprites["RLAND"])
+        # jumping left
+        self.sprites["LJUMP"] = [(4, 8)]
+        self.frames["LJUMP"] = len(self.sprites["LJUMP"])
+        # jumping right
+        self.sprites["RJUMP"] = [(15, 19)]
+        self.frames["RJUMP"] = len(self.sprites["RJUMP"])
         # entering teleport (reverse for leaving)
         self.sprites["TELE"] = [(36, 42), (37, 43), (38, 44),
                                  (39, 45), (40, 46), (41, 47)]
@@ -84,12 +91,12 @@ class PlayerEntity(ga.FSM, ga.Entity):
         """
         position = self.get_position()
         # display top sprite
-        sprite = self.sprites[self.vstate][self.frame][0]
+        sprite = self.sprites[self.anim][self.frame][0]
         sprite = self.data.get_sprite(sprite)
         gl.display.blit(sprite.image, position)
         # display bottom sprite
         position += (0, gl.SPRITE_Y)
-        sprite = self.sprites[self.vstate][self.frame][1]
+        sprite = self.sprites[self.anim][self.frame][1]
         sprite = self.data.get_sprite(sprite)
         gl.display.blit(sprite.image, position)
 
@@ -124,25 +131,43 @@ class PlayerEntity(ga.FSM, ga.Entity):
         if init:
             self.switch_state(self.state_stand)
 
+    def state_jump(self, init=False):
+        """Handle jumping state."""
+        if init:
+            self.move_vector.y = MAX_JUMP
+            self.anim = ("LJUMP", "RJUMP")[self.orientation]
+            self.frame = 0
+            if self.controller.left and (self.orientation == 0):
+                self.move_vector.x = -MOVE_STEP
+            if self.controller.right and (self.orientation == 1):
+                self.move_vector.x = MOVE_STEP
+        self.move_vector.y = min(0, self.move_vector.y + FALL_STEP)
+        move = self.check_move(self.move_vector,
+                               gl.screen_manager.get_screen(), False)
+
+        if move.y == 0:
+            return self.new_state(self.state_fall)
+        self.move(False)
+
     def state_fall(self, init=False):
         """Handle falling state."""
         if init:
-            self.vstate = ("LSTAND", "RSTAND")[self.orientation]
+            self.anim = ("LJUMP", "RJUMP")[self.orientation]
             self.frame = 0
             self.move_vector.y = 0
         if self.to_ground == 0:
             return self.switch_state(self.state_land)
         else:
-            self.move_vector.y += FALL_STEP \
-                if self.move_vector.y < MAX_FALL else 0
+            self.move_vector.y = min(MAX_FALL, self.move_vector.y + FALL_STEP)
             if (self.to_ground < self.move_vector.y):
                 self.move_vector.y = self.to_ground
             self.move()
 
     def state_land(self, init=False):
+        """Handle landing state."""
         if init:
             self.counter = 2
-        self.vstate = ("LLAND", "RLAND")[self.orientation]
+        self.anim = ("LLAND", "RLAND")[self.orientation]
         self.frame = 0
         self.counter -= 1
         if self.counter == 0:
@@ -151,7 +176,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
     def state_move(self, init=False):
         """Handle moving state."""
         if init:
-            self.vstate = ("LWALK", "RWALK")[self.orientation]
+            self.anim = ("LWALK", "RWALK")[self.orientation]
             self.frame = 0
         if self.to_ground > 0:
             return self.switch_state(self.state_fall)
@@ -167,16 +192,20 @@ class PlayerEntity(ga.FSM, ga.Entity):
             else:
                 return self.switch_state(self.state_stand)
             if self.move():
-                self.frame = (self.frame + 1) % self.frames[self.vstate]
+                self.frame = (self.frame + 1) % self.frames[self.anim]
             else:
-                self.vstate = ("LSTAND", "RSTAND")[self.orientation]
+                self.anim = ("LSTAND", "RSTAND")[self.orientation]
                 self.frame = 0
+                self.move_vector.x = 0
+            if self.controller.up:
+                return self.switch_state(self.state_jump)
 
 
     def state_turn(self, init=False):
+        """Handle turning state."""
         if init:
             self.orientation = 1 - self.orientation
-            self.vstate = "TURN"
+            self.anim = "TURN"
             if self.orientation == 1:
                 self.frame = 0
                 self.counter = 2
@@ -197,23 +226,25 @@ class PlayerEntity(ga.FSM, ga.Entity):
             self.move_vector = XY(0, 0)
             if self.to_ground > 0:
                 self.switch_state(self.state_fall)
-            self.vstate = ("LSTAND", "RSTAND")[self.orientation]
+            self.anim = ("LSTAND", "RSTAND")[self.orientation]
             self.frame = 0
         if self.to_ground > 0:
             return self.switch_state(self.state_fall)
         if self.controller.left or self.controller.right:
             return self.switch_state(self.state_move)
+        if self.controller.up:
+            return self.switch_state(self.state_jump)
 
-    def move(self):
+    def move(self, reset_x=True):
         """Move player's entitu"""
-        # check_move(self, offset, screen, ignore_ground=False):
         move = self.check_move(self.move_vector,
                                gl.screen_manager.get_screen(), True)
         pos = self.get_position()
         move_to = pos + move
         self.set_position(move_to)
         if abs(move.x) < abs(self.move_vector.x):
-            self.move_vector.x = 0
+            if reset_x:
+                self.move_vector.x = 0
             return False
         else:
             return True
@@ -239,7 +270,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
         elif center > gl.MAX_X:
             cs += 1 if cs < 255 else -255
             gl.screen_manager.change_screen(cs)
-            pos.x = gl.MAX_X - pos.x
+            pos.x = pos.x - gl.MAX_X
             self.set_position(pos)
 
     def update(self):

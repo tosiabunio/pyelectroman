@@ -59,7 +59,6 @@ class FSM:
 
     def switch_state(self, state):
         """Enter a new state immediately."""
-        logging.debug("Entering state: %s", state.__name__)
         self.state = state
         self.state(True)
 
@@ -215,7 +214,7 @@ class Entity:
         ox, oy = offset
         assert (ox & oy & 0x01) == 0
         if (ox == 0) and (oy == 0):
-            return (0, 0)
+            return XY(0, 0)
         nx, ny = 0, 0
         last_not_colliding = 0, 0
         swap_xy = False
