@@ -9,9 +9,8 @@ import pygame
 import logging
 
 MOVE_STEP = 8
-FALL_STEP = 2
-MAX_FALL = 24
-MAX_JUMP = -21
+# jump and fall vectors LUT based on the PC version
+JUMP_STEPS = [20, 18, 16, 12, 10, 8, 6, 4, 2, 0]
 
 class PlayerEntity(ga.FSM, ga.Entity):
     """
@@ -34,11 +33,13 @@ class PlayerEntity(ga.FSM, ga.Entity):
         self.sprites = {}
         self.frames = {}
         self.bbox = pygame.Rect(18, 12, 12, 84)
-        self.anim = "RSTAND"
-        self.frame = 0
+        self.anim = "RSTAND"  # current anim
+        self.frame = 0  # current anim frame
         self.orientation = 1  # 0 left, 1 right
-        self.move_vector = XY(0, 0)
-        self.to_ground = 0
+        self.move_vector = XY(0, 0)  # move vectors
+        self.to_ground = 0  # distance to ground
+        self.jump = 0  # index to jump and fall vectors LUT
+        self.counter = 0  # used to time some states
 
     def load(self):
         """
@@ -134,20 +135,20 @@ class PlayerEntity(ga.FSM, ga.Entity):
     def state_jump(self, init=False):
         """Handle jumping state."""
         if init:
-            self.move_vector.y = MAX_JUMP
+            self.jump = 0
             self.anim = ("LJUMP", "RJUMP")[self.orientation]
             self.frame = 0
             if self.controller.left and (self.orientation == 0):
                 self.move_vector.x = -MOVE_STEP
             if self.controller.right and (self.orientation == 1):
                 self.move_vector.x = MOVE_STEP
-        self.move_vector.y = min(0, self.move_vector.y + FALL_STEP)
+        self.move_vector.y = -JUMP_STEPS[self.jump]
         move = self.check_move(self.move_vector,
                                gl.screen_manager.get_screen(), False)
-
         if move.y == 0:
             return self.new_state(self.state_fall)
         self.move(False)
+        self.jump += 1
 
     def state_fall(self, init=False):
         """Handle falling state."""
@@ -155,13 +156,15 @@ class PlayerEntity(ga.FSM, ga.Entity):
             self.anim = ("LJUMP", "RJUMP")[self.orientation]
             self.frame = 0
             self.move_vector.y = 0
+            self.jump = len(JUMP_STEPS) - 1
         if self.to_ground == 0:
             return self.switch_state(self.state_land)
         else:
-            self.move_vector.y = min(MAX_FALL, self.move_vector.y + FALL_STEP)
+            self.move_vector.y = JUMP_STEPS[self.jump]
             if (self.to_ground < self.move_vector.y):
                 self.move_vector.y = self.to_ground
             self.move()
+            self.jump = max(0, self.jump - 1)
 
     def state_land(self, init=False):
         """Handle landing state."""
@@ -198,7 +201,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
                 self.frame = 0
                 self.move_vector.x = 0
             if self.controller.up:
-                return self.switch_state(self.state_jump)
+                return self.new_state(self.state_jump)
 
 
     def state_turn(self, init=False):
