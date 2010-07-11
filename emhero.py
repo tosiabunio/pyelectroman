@@ -32,6 +32,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
         self.data = da.SpriteSet()
         self.sprites = {}
         self.frames = {}
+        # single very narrow bounding box for all anims
         self.bbox = pygame.Rect(18, 12, 12, 84)
         self.anim = "RSTAND"  # current anim
         self.frame = 0  # current anim frame
@@ -135,19 +136,27 @@ class PlayerEntity(ga.FSM, ga.Entity):
     def state_jump(self, init=False):
         """Handle jumping state."""
         if init:
+            if self.controller.left:
+                self.move_vector.x = -MOVE_STEP
+                self.orientation = 0
+            if self.controller.right:
+                self.move_vector.x = MOVE_STEP
+                self.orientation = 1
             self.jump = 0
             self.anim = ("LJUMP", "RJUMP")[self.orientation]
             self.frame = 0
-            if self.controller.left and (self.orientation == 0):
-                self.move_vector.x = -MOVE_STEP
-            if self.controller.right and (self.orientation == 1):
-                self.move_vector.x = MOVE_STEP
-        self.move_vector.y = -JUMP_STEPS[self.jump]
-        move = self.check_move(self.move_vector,
-                               gl.screen_manager.get_screen(), False)
-        if move.y == 0:
+        up = XY(0,-JUMP_STEPS[self.jump])
+        up = self.check_move(up, gl.screen_manager.get_screen(), False)
+        pos = self.get_position()
+        pos += up
+        self.set_position(pos)
+        side = XY(self.move_vector.x, 0)
+        side = self.check_move(side, gl.screen_manager.get_screen(), False)
+        pos = self.get_position()
+        pos += side
+        self.set_position(pos)
+        if up.y == 0:
             return self.new_state(self.state_fall)
-        self.move(False)
         self.jump += 1
 
     def state_fall(self, init=False):
@@ -163,7 +172,9 @@ class PlayerEntity(ga.FSM, ga.Entity):
             self.move_vector.y = JUMP_STEPS[self.jump]
             if (self.to_ground < self.move_vector.y):
                 self.move_vector.y = self.to_ground
-            self.move()
+            moved = self.move()
+            # reset horizontal vector if wall hit while falling
+            self.move_vector.x = moved.x
             self.jump = max(0, self.jump - 1)
 
     def state_land(self, init=False):
@@ -184,6 +195,8 @@ class PlayerEntity(ga.FSM, ga.Entity):
         if self.to_ground > 0:
             return self.switch_state(self.state_fall)
         else:
+            if self.controller.up:
+                return self.new_state(self.state_jump)
             if self.controller.left:
                 if self.orientation == 1:
                     return self.switch_state(self.state_turn)
@@ -194,14 +207,14 @@ class PlayerEntity(ga.FSM, ga.Entity):
                 self.move_vector.x = MOVE_STEP
             else:
                 return self.switch_state(self.state_stand)
-            if self.move():
+            moved = self.move()
+            if moved.x != 0:
                 self.frame = (self.frame + 1) % self.frames[self.anim]
             else:
+                # cannot move farter, play stand animation
                 self.anim = ("LSTAND", "RSTAND")[self.orientation]
                 self.frame = 0
                 self.move_vector.x = 0
-            if self.controller.up:
-                return self.new_state(self.state_jump)
 
 
     def state_turn(self, init=False):
@@ -238,19 +251,14 @@ class PlayerEntity(ga.FSM, ga.Entity):
         if self.controller.up:
             return self.switch_state(self.state_jump)
 
-    def move(self, reset_x=True):
+    def move(self):
         """Move player's entitu"""
         move = self.check_move(self.move_vector,
                                gl.screen_manager.get_screen(), True)
         pos = self.get_position()
         move_to = pos + move
         self.set_position(move_to)
-        if abs(move.x) < abs(self.move_vector.x):
-            if reset_x:
-                self.move_vector.x = 0
-            return False
-        else:
-            return True
+        return move
 
     def check_bounds(self):
         """Check screen boundaries and change screens if neccessary."""
