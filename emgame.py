@@ -201,10 +201,10 @@ class Entity:
                     elif (offset[0] < 0) and sides["R"]:
                         # move left and right side
                         collided = collided if collided else True
-                    elif (offset[1] > 0) and sides["T"]:
+                    elif (offset[1] > 0) and sides["T"] and not ignore_ground:
                         # move down and top side
                         collided = collided if collided else True
-                    elif (offset[1] < 0) and sides["B"] and not ignore_ground:
+                    elif (offset[1] < 0) and sides["B"]:
                         # move up and bottom side
                         collided = collided if collided else True
         return collided

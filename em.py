@@ -195,7 +195,8 @@ class Gameplay:
     def load_level(self):
         gl.level.load(gl.level_names[gl.current_level])
         gl.screen_manager.add_all_screens(gl.level.get_screens())
-        gl.screen_manager.change_screen(16+3)
+        # starting screen is set below
+        gl.screen_manager.change_screen(40)
         self.screens_map = self.init_map()
 
     def loop_begin(self):

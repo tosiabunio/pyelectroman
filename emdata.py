@@ -170,102 +170,102 @@ class Level(LevelData):
 
     def __init_cycle(self, sidx, position):
         sprite = self.get_sprite(sidx)
-        entity = ga.Entity([sprite], position)
+        entity = ga.Display([sprite], position)
         return entity
 
     def __init_cycleplus(self, sidx, position):
         sprite = self.get_sprite(sidx)
-        entity = ga.Entity([sprite], position)
+        entity = ga.Display([sprite], position)
         return entity
 
     def __init_pulse(self, sidx, position):
         sprite = self.get_sprite(sidx)
-        entity = ga.Entity([sprite], position)
+        entity = ga.Display([sprite], position)
         return entity
 
     def __init_pulseplus(self, sidx, position):
         sprite = self.get_sprite(sidx)
-        entity = ga.Entity([sprite], position)
+        entity = ga.Display([sprite], position)
         return entity
 
     def __init_flash(self, sidx, position):
         sprite = self.get_sprite(sidx)
-        entity = ga.Entity([sprite], position)
+        entity = ga.Display([sprite], position)
         return entity
 
     def __init_flashplus(self, sidx, position):
         sprite = self.get_sprite(sidx)
-        entity = ga.Entity([sprite], position)
+        entity = ga.Display([sprite], position)
         return entity
 
     def __init_display(self, sidx, position):
         sprite = self.get_sprite(sidx)
-        entity = ga.Entity([sprite], position)
+        entity = ga.Display([sprite], position)
         return entity
 
     def __init_monitor(self, sidx, position):
         sprite = self.get_sprite(sidx)
-        entity = ga.Entity([sprite], position)
+        entity = ga.Display([sprite], position)
         return entity
 
     def __init_flashspecial(self, sidx, position):
         sprite = self.get_sprite(sidx)
-        entity = ga.Entity([sprite], position)
+        entity = ga.Display([sprite], position)
         return entity
 
     def __init_rocketup(self, sidx, position):
         sprite = self.get_sprite(sidx)
-        entity = ga.Entity([sprite], position)
+        entity = ga.Display([sprite], position)
         return entity
 
     def __init_rocketdown(self, sidx, position):
         sprite = self.get_sprite(sidx)
-        entity = ga.Entity([sprite], position)
+        entity = ga.Display([sprite], position)
         return entity
 
     def __init_killingfloor(self, sidx, position):
         sprite = self.get_sprite(sidx)
-        entity = ga.Entity([sprite], position)
+        entity = ga.Display([sprite], position)
         return entity
 
     def __init_checkpoint(self, sidx, position):
         sprite = self.get_sprite(sidx)
-        entity = ga.Entity([sprite], position)
+        entity = ga.Display([sprite], position)
         return entity
 
     def __init_teleport(self, sidx, position):
         sprite = self.get_sprite(sidx)
-        entity = ga.Entity([sprite], position)
+        entity = ga.Display([sprite], position)
         return entity
 
     def __init_exit(self, sidx, position):
         sprite = self.get_sprite(sidx)
-        entity = ga.Entity([sprite], position)
+        entity = ga.Display([sprite], position)
         return entity
 
     def __init_cannonleft(self, sidx, position):
         sprite = self.get_sprite(sidx)
-        entity = ga.Entity([sprite], position)
+        entity = ga.Display([sprite], position)
         return entity
 
     def __init_cannonright(self, sidx, position):
         sprite = self.get_sprite(sidx)
-        entity = ga.Entity([sprite], position)
+        entity = ga.Display([sprite], position)
         return entity
 
     def __init_cannonup(self, sidx, position):
         sprite = self.get_sprite(sidx)
-        entity = ga.Entity([sprite], position)
+        entity = ga.Display([sprite], position)
         return entity
 
     def __init_cannondown(self, sidx, position):
         sprite = self.get_sprite(sidx)
-        entity = ga.Entity([sprite], position)
+        entity = ga.Display([sprite], position)
         return entity
 
     def __init_enemy(self, sidx, position):
         sprite = self.get_sprite(sidx)
-        entity = ga.Entity([sprite], position)
+        entity = ga.Display([sprite], position)
         return entity
 
     def __get_active_entity(self, sidx, position):

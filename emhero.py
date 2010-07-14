@@ -294,6 +294,8 @@ class PlayerEntity(ga.FSM, ga.Entity):
         self.run_fsm()
         self.check_bounds()
         di.status_line.add("%s " % str(self.position))
+        di.status_line.add("Screen: %d " %
+                           gl.screen_manager.get_current_screen())
         di.status_line.add("Running state: %s " % self.state.__name__)
 
 # -----------------------------------------------------------------------------
