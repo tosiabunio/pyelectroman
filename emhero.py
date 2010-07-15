@@ -41,6 +41,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
         self.to_ground = 0  # distance to ground
         self.jump = 0  # index to jump and fall vectors LUT
         self.counter = 0  # used to time some states
+        self.screen = None  # current screen definition
 
     def load(self):
         """
@@ -125,7 +126,10 @@ class PlayerEntity(ga.FSM, ga.Entity):
         return self.get_y() + self.bbox.top + self.bbox.height
 
     def is_touchable(self):
-        """Override Entity.is_touchable() - no touching this entity."""
+        """
+        Override Entity.is_touchable()
+        I'm not sure what can touch the hero
+        """
         return False
 
     def state_init(self, init=False):
@@ -253,8 +257,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
 
     def move(self):
         """Move player's entitu"""
-        move = self.check_move(self.move_vector,
-                               gl.screen_manager.get_screen(), True)
+        move = self.check_move(self.move_vector, self.screen, True)
         pos = self.get_position()
         move_to = pos + move
         self.set_position(move_to)
@@ -286,9 +289,9 @@ class PlayerEntity(ga.FSM, ga.Entity):
 
     def update(self):
         """Update player behaviors."""
+        self.screen = gl.screen_manager.get_screen()
         # keep track of to ground distance
-        self.to_ground = self.check_ground((0, 0),
-                                           gl.screen_manager.get_screen())
+        self.to_ground = self.check_ground((0, 0), self.screen)
         di.message((8, 8), "to ground: %d" % self.to_ground)
         # run FSM for the player's entity
         self.run_fsm()

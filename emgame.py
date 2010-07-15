@@ -124,7 +124,7 @@ class Entity:
 
     def touch(self):
         """Standard touch handler."""
-        pass
+        return self.__class__.__name__
 
     def update(self):
         """Standard update method."""
@@ -165,10 +165,9 @@ class Entity:
         if screen:
             bbox = self.get_bbox()
             x = bbox.left + (bbox.width / 2) + self.get_x() + offset[0]
-            # 2 pixels up to always return negative when below ground
-            y = bbox.top + bbox.height + self.get_y() + offset[1] - 2
+            y = bbox.top + bbox.height + self.get_y() + offset[1]
             w = 2
-            h = (gl.SCREEN_Y * gl.SPRITE_Y) - y + 2
+            h = (gl.SCREEN_Y * gl.SPRITE_Y) - y
             me = pygame.Rect(x, y, w, h)
             collided = []
             for obj in screen.collisions:
@@ -179,9 +178,13 @@ class Entity:
             if collided:
                 # sorted by y position - probably not necessary anyway
                 collided.sort(key=lambda o: o.get_top())
-                ctop = collided[0].get_top()
-                # corrected for 2 pixels added above
-                result = ctop - y - 2
+                for coll in collided:
+                    # needs to collide from top
+                    if coll.get_sides()["T"]:
+                        ctop = coll.get_top()
+                        # correct for 2 pixels added above
+                        result = ctop - y
+                        break
         return result
 
     def check_collision(self, offset, screen, ignore_ground):
@@ -209,6 +212,7 @@ class Entity:
                         collided = collided if collided else True
         return collided
 
+
     def check_move(self, offset, screen, ignore_ground=False):
         """Check move"""
         ox, oy = offset
@@ -232,12 +236,9 @@ class Entity:
                 current_offset = ny, nx
             else:
                 current_offset = nx, ny
-            collision = self.check_collision(current_offset, screen,
-                                             ignore_ground)
-            if not collision:
-                last_not_colliding = current_offset
-            else:
+            if self.check_collision(current_offset, screen, ignore_ground):
                 break
+            last_not_colliding = current_offset
         # pylint: enable-msg=W0612
         return XY.from_tuple(last_not_colliding)
 
