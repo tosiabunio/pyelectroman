@@ -42,6 +42,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
         self.jump = 0  # index to jump and fall vectors LUT
         self.counter = 0  # used to time some states
         self.screen = None  # current screen definition
+        self.touched = None  # objects touched during recent move
 
     def load(self):
         """
@@ -150,12 +151,14 @@ class PlayerEntity(ga.FSM, ga.Entity):
             self.anim = ("LJUMP", "RJUMP")[self.orientation]
             self.frame = 0
         up = XY(0,-JUMP_STEPS[self.jump])
-        up = self.check_move(up, gl.screen_manager.get_screen(), False)
+        up, touched = self.check_move(up, gl.screen_manager.get_screen(), False)
+        self.touched.extend(touched)  # touch will be handled later
         pos = self.get_position()
         pos += up
         self.set_position(pos)
         side = XY(self.move_vector.x, 0)
-        side = self.check_move(side, gl.screen_manager.get_screen(), False)
+        side, touched = self.check_move(side, gl.screen_manager.get_screen(), False)
+        self.touched.extend(touched) # touch will be handled later
         pos = self.get_position()
         pos += side
         self.set_position(pos)
@@ -255,13 +258,29 @@ class PlayerEntity(ga.FSM, ga.Entity):
         if self.controller.up:
             return self.switch_state(self.state_jump)
 
+    def handle_touch(self):
+        if self.touched:
+            # remove duplicates
+            s = set(self.touched)
+            self.touched = list(s)
+            # process touch
+            names = ""
+            for obj in self.touched:
+                names += " | " + obj.touch()
+            di.message((8, 20), "touching: %s" % names)
+
+
     def move(self):
         """Move player's entitu"""
-        move = self.check_move(self.move_vector, self.screen, True)
+        move, touched = self.check_move(self.move_vector, self.screen, True)
+        self.touched.extend(touched)  # touch will be handled later
         pos = self.get_position()
         move_to = pos + move
         self.set_position(move_to)
         return move
+
+    def check_touch(self):
+        self.touched.extend(self.get_touching((0, 0), self.screen))
 
     def check_bounds(self):
         """Check screen boundaries and change screens if neccessary."""
@@ -289,17 +308,28 @@ class PlayerEntity(ga.FSM, ga.Entity):
 
     def update(self):
         """Update player behaviors."""
+        # intialize some variables
         self.screen = gl.screen_manager.get_screen()
+        self.touched = []
+        # check for touching objects at current position
+        self.check_touch()
         # keep track of to ground distance
         self.to_ground = self.check_ground((0, 0), self.screen)
         di.message((8, 8), "to ground: %d" % self.to_ground)
         # run FSM for the player's entity
         self.run_fsm()
+        # check for screen boundaries (thus screen change)
         self.check_bounds()
-        di.status_line.add("%s " % str(self.position))
-        di.status_line.add("Screen: %d " %
+        # handle objects touched
+        self.handle_touch()
+        # display some status information
+        di.status_line.add("%s" % str(self.position))
+        di.status_line.add(" | screen: %d" %
                            gl.screen_manager.get_current_screen())
-        di.status_line.add("Running state: %s " % self.state.__name__)
+        di.status_line.add(" | running state: %s " % self.state.__name__)
+        if self.touched:
+            di.status_line.add("| touching: %d" % len(self.touched))
+
 
 # -----------------------------------------------------------------------------
 # test code below

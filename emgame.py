@@ -188,7 +188,7 @@ class Entity:
         return result
 
     def check_collision(self, offset, screen, ignore_ground):
-        """Check collision"""
+        """Check collision at offset"""
         collided = False
         if screen:
             me = self.get_bbox().copy()
@@ -212,13 +212,27 @@ class Entity:
                         collided = collided if collided else True
         return collided
 
+    def get_touching(self, offset, screen):
+        """Return objects touching at offset"""
+        touched = []
+        if screen:
+            me = self.get_bbox().copy()
+            me.move_ip(self.get_position() + offset)
+            for obj in screen.active:
+                you = obj.get_bbox().copy()
+                you.move_ip(obj.get_position())
+                if me.colliderect(you) and obj.is_touchable():
+                    touched.append(obj)
+        return touched
 
     def check_move(self, offset, screen, ignore_ground=False):
-        """Check move"""
+        """Check move possibility (offset - move vector)"""
         ox, oy = offset
+        touched = []
         assert (ox & oy & 0x01) == 0
         if (ox == 0) and (oy == 0):
-            return XY(0, 0)
+            touched.extend(self.get_touching((0, 0), screen))
+            return (XY(0, 0), touched)
         nx, ny = 0, 0
         last_not_colliding = 0, 0
         swap_xy = False
@@ -228,6 +242,7 @@ class Entity:
         sy = (float(oy) / abs(ox)) * 2
         fy = 0.01
         # pylint: disable-msg=W0612
+        # mutilsampling check with step 2 pixels
         for step in range(abs(ox) / 2):
             nx += 2 * cmp(ox, 0)
             fy += sy
@@ -236,11 +251,12 @@ class Entity:
                 current_offset = ny, nx
             else:
                 current_offset = nx, ny
+            touched.extend(self.get_touching(current_offset, screen))
             if self.check_collision(current_offset, screen, ignore_ground):
                 break
             last_not_colliding = current_offset
         # pylint: enable-msg=W0612
-        return XY.from_tuple(last_not_colliding)
+        return (XY.from_tuple(last_not_colliding), touched)
 
 
 class ScreenManager:
@@ -296,7 +312,7 @@ class ActiveCheckpoint:
 
 
 class Cycle(Entity):
-    def __init___(self, sprites, position):
+    def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
 
     def update(self):
@@ -304,7 +320,7 @@ class Cycle(Entity):
 
 
 class CyclePlus(Entity):
-    def __init___(self, sprites, position):
+    def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
 
     def update(self):
@@ -312,7 +328,7 @@ class CyclePlus(Entity):
 
 
 class Pulse(Entity):
-    def __init___(self, sprites, position):
+    def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
 
     def update(self):
@@ -320,7 +336,7 @@ class Pulse(Entity):
 
 
 class PulsePlus(Entity):
-    def __init___(self, sprites, position):
+    def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
 
     def update(self):
@@ -328,7 +344,7 @@ class PulsePlus(Entity):
 
 
 class Flash(Entity):
-    def __init___(self, sprites, position):
+    def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
 
     def update(self):
@@ -336,7 +352,7 @@ class Flash(Entity):
 
 
 class FlashPlus(Entity):
-    def __init___(self, sprites, position):
+    def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
 
     def update(self):
@@ -344,7 +360,7 @@ class FlashPlus(Entity):
 
 
 class RocketUp(Entity):
-    def __init___(self, sprites, position):
+    def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
 
     def update(self):
@@ -352,7 +368,7 @@ class RocketUp(Entity):
 
 
 class RocketDown(Entity):
-    def __init___(self, sprites, position):
+    def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
 
     def update(self):
@@ -360,7 +376,7 @@ class RocketDown(Entity):
 
 
 class KillingFloor(Entity):
-    def __init___(self, sprites, position):
+    def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
 
     def update(self):
@@ -368,7 +384,7 @@ class KillingFloor(Entity):
 
 
 class Monitor(Entity):
-    def __init___(self, sprites, position):
+    def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
 
     def update(self):
@@ -376,7 +392,7 @@ class Monitor(Entity):
 
 
 class Display(Entity):
-    def __init___(self, sprites, position):
+    def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
 
     def update(self):
@@ -384,7 +400,7 @@ class Display(Entity):
 
 
 class Checkpoint(Entity):
-    def __init___(self, sprites, position):
+    def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
 
     def update(self):
@@ -392,7 +408,7 @@ class Checkpoint(Entity):
 
 
 class Teleport(Entity):
-    def __init___(self, sprites, position):
+    def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
 
     def update(self):
@@ -400,7 +416,7 @@ class Teleport(Entity):
 
 
 class Exit(Entity):
-    def __init___(self, sprites, position):
+    def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
 
     def update(self):
@@ -408,7 +424,7 @@ class Exit(Entity):
 
 
 class CannonLeft(Entity):
-    def __init___(self, sprites, position):
+    def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
 
     def update(self):
@@ -416,7 +432,7 @@ class CannonLeft(Entity):
 
 
 class CannonRight(Entity):
-    def __init___(self, sprites, position):
+    def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
 
     def update(self):
@@ -424,7 +440,7 @@ class CannonRight(Entity):
 
 
 class CannonUp(Entity):
-    def __init___(self, sprites, position):
+    def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
 
     def update(self):
@@ -432,7 +448,7 @@ class CannonUp(Entity):
 
 
 class CannonDown(Entity):
-    def __init___(self, sprites, position):
+    def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
 
     def update(self):
@@ -440,7 +456,7 @@ class CannonDown(Entity):
 
 
 class FlashSpecial(Entity):
-    def __init___(self, sprites, position):
+    def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
 
     def update(self):
