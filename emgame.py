@@ -120,7 +120,7 @@ class Entity:
         return self.sprites[self.frame].bbox.top + self.get_y()
 
     def is_touchable(self):
-        return (self.sprites[self.frame].status[0] & 0x40) != 0
+        return self.sprites[self.frame].status_is("touchable")
 
     def touch(self):
         """Standard touch handler."""

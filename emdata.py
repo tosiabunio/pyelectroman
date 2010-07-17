@@ -8,6 +8,9 @@ import os
 import logging
 import pygame
 
+status_masks = { "active" : 0x80, "touchable" : 0x40, "shootable" : 0x20,
+                 "stays_active" : 0x10, "destroyable" : 0x08,
+                 "in_front" : 0x04, "last_frame" : 0x02, "first_frame" : 0x01}
 
 class SpriteData:
     def __init__(self):
@@ -31,7 +34,8 @@ class SpriteData:
                                        set_name + "_%02d.png" % number)
         self.image = pygame.image.load(image_file_path).convert_alpha()
         self.image = pygame.transform.scale2x(self.image)
-        self.status = status[0:4]
+        self.status = status[0]
+        #self.status = status[0:4]
         self.action = status[1] & 0x1F
         self.param = status[2]
         self.touch = status[3]
@@ -47,6 +51,12 @@ class SpriteData:
 
     def get_status(self):
         return self.status
+
+    def status_is(self, mask_id):
+        if mask_id not in status_masks:
+            raise KeyError("Mask id not found %s", mask_id);
+        mask = status_masks[mask_id]
+        return (self.status & mask) != 0
 
 
 class EmptySprite(SpriteData):
@@ -115,6 +125,7 @@ class SpriteSet:
         return self.set["used table"][sprite]
 
     def get_sprite(self, number):
+        """Return sprite[number] from the set"""
         assert number >= 0 and number < 64
         return self.sprites[number]
 
@@ -226,8 +237,10 @@ class Level(LevelData):
         return entity
 
     def __init_checkpoint(self, sidx, position):
-        sprite = self.get_sprite(sidx)
-        entity = ga.Checkpoint([sprite], position)
+        ends = self.get_anim_ends(sidx)
+        sprites = self.get_anim(ends)
+        entity = ga.Checkpoint(sprites, position)
+        entity.frame = sidx - ends[0]
         return entity
 
     def __init_teleport(self, sidx, position):
@@ -294,7 +307,7 @@ class Level(LevelData):
                                 sidx = layer[y * gl.SCREEN_X + x]
                                 if sidx != 0:
                                     sprite = self.get_sprite(sidx)
-                                    activity = sprite.get_status()[0]
+                                    activity = sprite.get_status()
                                     action = sprite.action
                                     position = XY(x * gl.SPRITE_X,
                                                 y * gl.SPRITE_Y)
@@ -337,6 +350,28 @@ class Level(LevelData):
             return self.set1.get_sprite(number)
         else:
             return self.set2.get_sprite(number - 64)
+
+    def get_anim_ends(self, number):
+        """Return sprite animation start and end numbers as a tuple"""
+        s = number
+        while True and (s > 0):
+            if self.get_sprite(s).status_is("first_frame"):
+                break
+            s -= 1
+        start = s
+        while True and (s < 128):
+            if self.get_sprite(s).status_is("last_frame"):
+                break
+            s += 1
+        s = min(s, 127)
+        return (start, s)
+
+    def get_anim(self, ends):
+        """Return anim sprites list based on 'ends' tuple"""
+        anim = []
+        for sidx in range(ends[0], ends[1] + 1):
+            anim.append(self.get_sprite(sidx))
+        return anim
 
 
 # -----------------------------------------------------------------------------
