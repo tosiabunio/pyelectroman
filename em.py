@@ -1,6 +1,7 @@
 """Main game module"""
 
 import emglobals as gl
+from emglobals import XY
 import emdata as da
 import emgame as ga
 import emdisplay as di
@@ -19,14 +20,14 @@ class Gameplay:
         Gameplay.__single = self
         # sigleton protection code ends here
         gl.level = da.Level()
-        self.ground = None
-        self.loop = True
-        self.screens_map = None
         self.controller = ga.Controller()
+        # initialize a few global objects
         gl.screen_manager = ga.ScreenManager()
         gl.player = pl.PlayerEntity(self.controller)
-        self.num_collisions = 0
-        self.num_touched = 0
+        gl.checkpoint = ga.ActiveCheckpoint()
+        # initialize rest
+        self.loop = True
+        self.screens_map = None
         self.key_handlers = {}
         self.key_handlers[pygame.K_ESCAPE] = self.on_k_escape
         self.key_handlers[pygame.K_TAB] = self.on_k_tab
@@ -44,6 +45,7 @@ class Gameplay:
         self.key_handlers[pygame.K_8] = self.on_k_8
 
     def init_map(self):
+        """Initialize level map"""
         # pylint: disable-msg=E1121
         screens_map = pygame.Surface((32, 32))
         pixels = pygame.PixelArray(screens_map)
@@ -66,6 +68,7 @@ class Gameplay:
         return screens_map
 
     def show_map(self, pos):
+        """Display level map (for debug only)"""
         scr = gl.screen_manager.get_current_screen()
         CURRENT = 0xFFFFFF
         # pylint: disable-msg=E1121
@@ -80,13 +83,12 @@ class Gameplay:
         del pixels
         gl.window.blit(screens_map_copy, pos)
 
-    def show_help(self):
-        pass
-
     def show_info(self):
+        """Display status line"""
         di.status_line.show()
 
     def display_screen(self, screen):
+        """Display all objects (active and background on the screen"""
         if screen:
             for sprite in screen.background:
                 sprite.display()
@@ -97,15 +99,15 @@ class Gameplay:
             for sprite in screen.active:
                 sprite.display()
                 if gl.show_collisions:
+                    # show collision boxes
                     sprite.display_collisions(pygame.Color(255, 255, 0))
 
     def display_hero(self):
+        """Display player's character"""
         gl.player.display()
         if gl.show_collisions:
+            # show collision box and ground testing point
             gl.player.display_collisions()
-            if self.ground:
-                pygame.draw.circle(gl.display, pygame.Color(200, 255, 255),
-                                   self.ground, 5, 1)
 
     def move_player(self, offset):
         position = gl.player.get_position() + offset
@@ -178,10 +180,12 @@ class Gameplay:
 
     def on_k_6(self):
         gl.current_level = 5
+        self.load_level()
         return True
 
     def on_k_7(self):
         gl.current_level = 6
+        self.load_level()
         return True
 
     def on_k_8(self):
@@ -195,14 +199,16 @@ class Gameplay:
     def load_level(self):
         gl.level.load(gl.level_names[gl.current_level])
         gl.screen_manager.add_all_screens(gl.level.get_screens())
-        # starting screen is set below
-        gl.screen_manager.change_screen(0)
         self.screens_map = self.init_map()
+        start_screen = gl.checkpoint.get_screen()
+        start_position = gl.checkpoint.get_position()
+        if start_position:
+            start_position += XY(gl.SPRITE_X / 2, gl.SPRITE_Y)
+            gl.screen_manager.change_screen(start_screen)
+            gl.player.stand(start_position)
 
     def loop_begin(self):
         di.clear_screen()
-        self.num_collisions = 0
-        self.num_touched = 0
 
     def loop_events(self):
         for event in pygame.event.get():
@@ -223,7 +229,6 @@ class Gameplay:
         self.display_hero()
         self.show_map((640 - 32 - 8, 8))
         self.show_info()
-        self.show_help()
         di.show()
 
     def start(self):

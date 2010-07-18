@@ -8,9 +8,12 @@ import emgame as ga
 import pygame
 import logging
 
+# horizontal move vector
 MOVE_STEP = 8
-# jump and fall vectors LUT based on the PC version
+# jump vectors LUT based on the PC version
 JUMP_STEPS = [20, 18, 16, 12, 10, 8, 6, 4, 2, 0]
+FALL_STEPS = [2, 4, 6, 8, 10, 12, 16, 18, 20, 22, 24,
+              26, 28, 32, 34, 36, 38, 40, 42, 44, 48]
 
 class PlayerEntity(ga.FSM, ga.Entity):
     """
@@ -164,6 +167,9 @@ class PlayerEntity(ga.FSM, ga.Entity):
         self.set_position(pos)
         if up.y == 0:
             return self.new_state(self.state_fall)
+        if side.x < self.move_vector.x:
+            self.move_vector.x =0
+            return self.new_state(self.state_fall)
         self.jump += 1
 
     def state_fall(self, init=False):
@@ -172,17 +178,19 @@ class PlayerEntity(ga.FSM, ga.Entity):
             self.anim = ("LJUMP", "RJUMP")[self.orientation]
             self.frame = 0
             self.move_vector.y = 0
-            self.jump = len(JUMP_STEPS) - 1
+            self.jump = 0
         if self.to_ground == 0:
             return self.switch_state(self.state_land)
         else:
-            self.move_vector.y = JUMP_STEPS[self.jump]
+            self.move_vector.y = FALL_STEPS[self.jump]
             if (self.to_ground < self.move_vector.y):
                 self.move_vector.y = self.to_ground
             moved = self.move()
             # reset horizontal vector if wall hit while falling
-            self.move_vector.x = moved.x
-            self.jump = max(0, self.jump - 1)
+            self.jump += 1
+            if self.jump == len(FALL_STEPS):
+                self.move_vector.x = moved.x
+                self.jump -= 1
 
     def state_land(self, init=False):
         """Handle landing state."""
@@ -269,6 +277,12 @@ class PlayerEntity(ga.FSM, ga.Entity):
                 names += " | " + obj.touch()
             di.message((8, 20), "touching: %s" % names)
 
+    def stand(self, position):
+        """Place player's model feet at position"""
+        rect = self.get_bbox()
+        x = position.x - rect.centerx
+        y = position.y - rect.bottom
+        self.set_position(XY(x, y))
 
     def move(self):
         """Move player's entitu"""

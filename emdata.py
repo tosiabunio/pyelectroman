@@ -8,25 +8,32 @@ import os
 import logging
 import pygame
 
-status_masks = { "active" : 0x80, "touchable" : 0x40, "shootable" : 0x20,
-                 "stays_active" : 0x10, "destroyable" : 0x08,
-                 "in_front" : 0x04, "last_frame" : 0x02, "first_frame" : 0x01}
+flag_masks = {"active" : 0x80, "touchable" : 0x40, "shootable" : 0x20,
+              "stays_active" : 0x10, "destroyable" : 0x08,
+              "in_front" : 0x04, "last_frame" : 0x02, "first_frame" : 0x01}
+
+
+touch_procs = {0 : "none", 1 : "battery", 2 : "teleport", 3 :"checkpoint",
+               4 : "killer", 5 : "floppy", 6 :  "exit",
+               7 : "special good", 8 : "special bad"}
+
 
 class SpriteData:
     def __init__(self):
         self.image = None
         self.bbox = None
         self.collide = {}
-        self.status = []
         self.sidx = 0
+        self.index = 0
+        # object data retrived from status bytes
+        self.flags = 0
+        self.action = 0
+        self.param = 0
+        self.touch = 0
         self.aux1 = 0
         self.aux2 = 0
-        self.param = 0
-        self.action = None
-        self.touch = None
-        self.index = 0
 
-    def load(self, set_name, number, status):
+    def load(self, set_name, number, status_bytes):
         self.__init__()
         self.sidx = number
         set_file_path = os.path.join(gl.data_folder, set_name)
@@ -34,40 +41,33 @@ class SpriteData:
                                        set_name + "_%02d.png" % number)
         self.image = pygame.image.load(image_file_path).convert_alpha()
         self.image = pygame.transform.scale2x(self.image)
-        self.status = status[0]
-        #self.status = status[0:4]
-        self.action = status[1] & 0x1F
-        self.param = status[2]
-        self.touch = status[3]
-        self.aux1 = (status[1] & 0xE0) >> 5
+        # set up sprite information from status bytes
+        self.flags = status_bytes[0]
+        self.action = status_bytes[1] & 0x1F
+        self.param = status_bytes[2]
+        self.touch = status_bytes[3]
+        self.aux1 = (status_bytes[1] & 0xE0) >> 5
         self.aux2 = 0
-        x = (status[4] & 0x7F) * 2
-        y = (status[6] & 0x7F) * 2
-        w = ((status[5] & 0x7F) - (status[4] & 0x7F)) * 2
-        h = ((status[7] & 0x7F) - (status[6] & 0x7F)) * 2
+        # set up sprite bounding box from status bytes
+        x = (status_bytes[4] & 0x7F) * 2
+        y = (status_bytes[6] & 0x7F) * 2
+        w = ((status_bytes[5] & 0x7F) - (status_bytes[4] & 0x7F)) * 2
+        h = ((status_bytes[7] & 0x7F) - (status_bytes[6] & 0x7F)) * 2
         self.bbox = pygame.Rect(x, y, w, h)
+        # set up collisins for all sides from status bytes
         for col in range(4):
-            self.collide["LRTB"[col]] = (status[4 + col] & 0x80) == 0
+            self.collide["LRTB"[col]] = (status_bytes[4 + col] & 0x80) == 0
 
-    def get_status(self):
-        return self.status
-
-    def status_is(self, mask_id):
-        if mask_id not in status_masks:
-            raise KeyError("Mask id not found %s", mask_id);
-        mask = status_masks[mask_id]
-        return (self.status & mask) != 0
+    def flag(self, flag_id):
+        if flag_id not in flag_masks:
+            raise KeyError("Flag id not found %s", flag_id)
+        mask = flag_masks[flag_id]
+        return (self.flags & mask) != 0
 
 
 class EmptySprite(SpriteData):
     def __init__(self):
         SpriteData.__init__(self)
-        self.status = 0
-        self.action = 0
-        self.param = 0
-        self.touch = 0
-        self.aux1 = 0
-        self.aux2 = 0
         x = 0
         y = 0
         w = gl.SPRITE_X
@@ -111,14 +111,14 @@ class SpriteSet:
         for spr in range(64):
             if self.is_used(spr):
                 sprite = SpriteData()
-                sprite.load(set_name, spr, self.get_status(spr))
+                sprite.load(set_name, spr, self.get_status_bytes(spr))
                 self.sprites.append(sprite)
             else:
                 self.sprites.append(None)
         logging.info("Sprite set '%s' loaded: %d sprites",
                      set_name, 64 - self.sprites.count(None))
 
-    def get_status(self, sprite):
+    def get_status_bytes(self, sprite):
         return self.set["status table"][sprite * 8:sprite * 8 + 8]
 
     def is_used(self, sprite):
@@ -284,9 +284,10 @@ class Level(LevelData):
         return self.init_functions.get(action, self.__init_display)(sidx,
                                                                     position)
 
-    def load(self, filename):
+    def load(self, name):
         self.__init__()
-        LevelData.load(self, filename)
+        self.name = name
+        LevelData.load(self, name)
         set1_name = self.data["names"][0]
         set2_name = self.data["names"][1]
         assert set1_name is not "" and set2_name is not ""
@@ -296,8 +297,6 @@ class Level(LevelData):
         for s in range(256):
             layers = self.data["screens"][s]
             if layers:
-                if self.start is None:
-                    self.start = s
                 screen = Screen()
                 for lay in range(4):
                     layer = layers[lay]
@@ -306,27 +305,33 @@ class Level(LevelData):
                             for x in range(gl.SCREEN_X):
                                 sidx = layer[y * gl.SCREEN_X + x]
                                 if sidx != 0:
-                                    sprite = self.get_sprite(sidx)
-                                    activity = sprite.get_status()
-                                    action = sprite.action
-                                    position = XY(x * gl.SPRITE_X,
-                                                y * gl.SPRITE_Y)
-                                    if (activity == 0x80) & (action == 0):
-                                        entity = ga.Entity([sprite], position)
-                                        screen.collisions.append(entity)
-                                    elif activity & 0x80:
-                                        entity = \
-                                        self.__get_active_entity(sidx,
-                                                                 position)
-                                        screen.active.append(entity)
-                                    else:
-                                        entity = ga.Entity([sprite], position)
-                                        screen.background.append(entity)
+                                    self.process(screen, sidx, x, y, s)
                 self.screens.append(screen)
                 cntr += 1
             else:
                 self.screens.append(None)
-        logging.info("Level '%s' loaded: %d screens", filename, cntr)
+        logging.info("Level '%s' loaded: %d screens", name, cntr)
+
+    def process(self, screen, sidx, x, y, screen_number):
+        sprite = self.get_sprite(sidx)
+        flags = sprite.flags
+        action = sprite.action
+        param = sprite.param
+        position = XY(x * gl.SPRITE_X, y * gl.SPRITE_Y)
+        if (flags == 0x80) & (action == 0):
+            entity = ga.Entity([sprite], position)
+            screen.collisions.append(entity)
+        elif flags & 0x80:
+            entity = self.__get_active_entity(sidx, position)
+            screen.active.append(entity)
+            if isinstance(entity, ga.Checkpoint) and param == 1:
+                # active checkpoint - level start
+                level_number = gl.level_names.index(self.name)
+                gl.checkpoint.update(level_number, screen_number, position)
+        else:
+            entity = ga.Entity([sprite], position)
+            screen.background.append(entity)
+
 
     def get_set(self, set_id):
         if set_id == 0:
@@ -341,9 +346,6 @@ class Level(LevelData):
     def get_screens(self):
         return self.screens
 
-    def get_start(self):
-        return self.start
-
     def get_sprite(self, number):
         assert number >= 0 and number < 128
         if number < 64:
@@ -355,12 +357,12 @@ class Level(LevelData):
         """Return sprite animation start and end numbers as a tuple"""
         s = number
         while True and (s > 0):
-            if self.get_sprite(s).status_is("first_frame"):
+            if self.get_sprite(s).flag("first_frame"):
                 break
             s -= 1
         start = s
         while True and (s < 128):
-            if self.get_sprite(s).status_is("last_frame"):
+            if self.get_sprite(s).flag("last_frame"):
                 break
             s += 1
         s = min(s, 127)
@@ -373,6 +375,8 @@ class Level(LevelData):
             anim.append(self.get_sprite(sidx))
         return anim
 
+    def get_start(self):
+        pass
 
 # -----------------------------------------------------------------------------
 # test code below

@@ -120,7 +120,7 @@ class Entity:
         return self.sprites[self.frame].bbox.top + self.get_y()
 
     def is_touchable(self):
-        return self.sprites[self.frame].status_is("touchable")
+        return self.sprites[self.frame].flag("touchable")
 
     def touch(self):
         """Standard touch handler."""
@@ -297,15 +297,20 @@ class ActiveCheckpoint:
             raise TypeError("Only one instance is allowed!")
         ActiveCheckpoint.__single = self
         # sigleton protection code ends here
-        self.level = 0
-        self.position = (0, 0)
+        self.level = None
+        self.screen = None
+        self.position = None
 
-    def update(self, level, position):
+    def update(self, level, screen, position):
         self.level = level
+        self.screen = screen
         self.position = position
 
     def get_level(self):
         return self.level
+
+    def get_screen(self):
+        return self.screen
 
     def get_position(self):
         return self.position

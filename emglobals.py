@@ -46,8 +46,8 @@ level = None  # currently loaded level
 screen_manager = None  # screen manager
 
 loop_main_loop = True  # loop the main gameplay loop
-player = None
-active_checkpoint = None
+player = None  # player's character entity
+checkpoint = None  # active checkpoint
 
 # system related globals
 
