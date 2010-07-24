@@ -18,11 +18,7 @@ class Controller:
         if Controller.__single:
             raise TypeError("Only one instance is allowed!")
         Controller.__single = self
-        self.left = False
-        self.right = False
-        self.up = False
-        self.down = False
-        self.fire = False
+        self.clear()
 
     def clear(self):
         self.left = False
@@ -30,6 +26,7 @@ class Controller:
         self.up = False
         self.down = False
         self.fire = False
+        self.debug = False
 
     def update(self):
         """Update controller settings"""
@@ -49,6 +46,8 @@ class Controller:
                 self.down = True
             if keys[pygame.K_SPACE]:
                 self.fire = True
+        else:
+            self.debug = True
 
 
 class FSM:

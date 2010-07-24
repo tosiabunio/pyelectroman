@@ -375,9 +375,6 @@ class Level(LevelData):
             anim.append(self.get_sprite(sidx))
         return anim
 
-    def get_start(self):
-        pass
-
 # -----------------------------------------------------------------------------
 # test code below
 

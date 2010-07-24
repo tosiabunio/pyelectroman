@@ -36,7 +36,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
         self.sprites = {}
         self.frames = {}
         # single very narrow bounding box for all anims
-        self.bbox = pygame.Rect(18, 12, 12, 84)
+        self.bbox = pygame.Rect(16, 12, 16, 84)
         self.anim = "RSTAND"  # current anim
         self.frame = 0  # current anim frame
         self.orientation = 1  # 0 left, 1 right
@@ -153,23 +153,23 @@ class PlayerEntity(ga.FSM, ga.Entity):
             self.jump = 0
             self.anim = ("LJUMP", "RJUMP")[self.orientation]
             self.frame = 0
+        # vertical movement first
         up = XY(0,-JUMP_STEPS[self.jump])
-        up, touched = self.check_move(up, gl.screen_manager.get_screen(), False)
+        pup, touched = self.check_move(up, gl.screen_manager.get_screen(), False)
         self.touched.extend(touched)  # touch will be handled later
         pos = self.get_position()
-        pos += up
+        pos += pup
         self.set_position(pos)
+        if (pup.y > up.y) or up.y == 0:
+            # collided or reached max point, switch to fall next frame
+            self.new_state(self.state_fall)
+        # then horizontal movement
         side = XY(self.move_vector.x, 0)
-        side, touched = self.check_move(side, gl.screen_manager.get_screen(), False)
+        pside, touched = self.check_move(side, gl.screen_manager.get_screen(), False)
         self.touched.extend(touched) # touch will be handled later
         pos = self.get_position()
-        pos += side
+        pos += pside
         self.set_position(pos)
-        if up.y == 0:
-            return self.new_state(self.state_fall)
-        if side.x < self.move_vector.x:
-            self.move_vector.x =0
-            return self.new_state(self.state_fall)
         self.jump += 1
 
     def state_fall(self, init=False):
@@ -187,9 +187,11 @@ class PlayerEntity(ga.FSM, ga.Entity):
                 self.move_vector.y = self.to_ground
             moved = self.move()
             # reset horizontal vector if wall hit while falling
+            self.move_vector.x = moved.x
             self.jump += 1
             if self.jump == len(FALL_STEPS):
-                self.move_vector.x = moved.x
+                # limit max vertical speed and cancel horizontal then
+                self.move_vector.x = 0
                 self.jump -= 1
 
     def state_land(self, init=False):
@@ -331,7 +333,8 @@ class PlayerEntity(ga.FSM, ga.Entity):
         self.to_ground = self.check_ground((0, 0), self.screen)
         di.message((8, 8), "to ground: %d" % self.to_ground)
         # run FSM for the player's entity
-        self.run_fsm()
+        if not self.controller.debug:
+            self.run_fsm()
         # check for screen boundaries (thus screen change)
         self.check_bounds()
         # handle objects touched
