@@ -154,8 +154,8 @@ class PlayerEntity(ga.FSM, ga.Entity):
             self.anim = ("LJUMP", "RJUMP")[self.orientation]
             self.frame = 0
         # vertical movement first
-        up = XY(0,-JUMP_STEPS[self.jump])
-        pup, touched = self.check_move(up, gl.screen_manager.get_screen(), False)
+        up = XY(0, -JUMP_STEPS[self.jump])
+        pup, touched = self.check_move(up, self.screen)
         self.touched.extend(touched)  # touch will be handled later
         pos = self.get_position()
         pos += pup
@@ -165,7 +165,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
             self.new_state(self.state_fall)
         # then horizontal movement
         side = XY(self.move_vector.x, 0)
-        pside, touched = self.check_move(side, gl.screen_manager.get_screen(), False)
+        pside, touched = self.check_move(side, self.screen)
         self.touched.extend(touched) # touch will be handled later
         pos = self.get_position()
         pos += pside
@@ -330,7 +330,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
         # check for touching objects at current position
         self.check_touch()
         # keep track of to ground distance
-        self.to_ground = self.check_ground((0, 0), self.screen)
+        self.to_ground = self.check_ground(self.screen)
         di.message((8, 8), "to ground: %d" % self.to_ground)
         # run FSM for the player's entity
         if not self.controller.debug:

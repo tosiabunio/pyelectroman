@@ -18,7 +18,13 @@ class Controller:
         if Controller.__single:
             raise TypeError("Only one instance is allowed!")
         Controller.__single = self
-        self.clear()
+        # pylint complains when those are defined via calling clear()
+        self.left = False
+        self.right = False
+        self.up = False
+        self.down = False
+        self.fire = False
+        self.debug = False
 
     def clear(self):
         self.left = False
@@ -153,7 +159,7 @@ class Entity:
             ep = position + (x + w - 1, y + h - 1)
             pygame.draw.line(gl.display, color, sp, ep, 1)
 
-    def check_ground(self, offset, screen):
+    def check_ground(self, screen):
         """
         Return distance from the bottom of entity's bounding box to the ground.
         Negative value means the entity BB is already in the ground (collides
@@ -163,11 +169,13 @@ class Entity:
         result = (gl.SCREEN_Y * (gl.SPRITE_Y + 1))
         if screen:
             bbox = self.get_bbox()
-            x = bbox.left + (bbox.width / 2) + self.get_x() + offset[0]
-            y = bbox.top + bbox.height + self.get_y() + offset[1]
-            w = 2
+            x = bbox.left + self.get_x()
+            y = bbox.top + bbox.height + self.get_y()
+            w = bbox.width
             h = (gl.SCREEN_Y * gl.SPRITE_Y) - y
             me = pygame.Rect(x, y, w, h)
+            #pygame.draw.rect(Surface, color, Rect, width=0)
+            pygame.draw.rect(gl.display, pygame.Color(255, 255, 255), me, 1)
             collided = []
             for obj in screen.collisions:
                 you = obj.get_bbox().copy()
@@ -181,12 +189,11 @@ class Entity:
                     # needs to collide from top
                     if coll.get_sides()["T"]:
                         ctop = coll.get_top()
-                        # correct for 2 pixels added above
                         result = ctop - y
                         break
         return result
 
-    def check_collision(self, offset, screen, ignore_ground):
+    def check_collision(self, offset, screen, ignore_ground=False):
         """Check collision at offset"""
         collided = False
         if screen:
