@@ -222,6 +222,9 @@ class Gameplay:
 
     def loop_run(self):
         gl.screen = gl.screen_manager.get_screen()
+        if gl.screen:
+            for active in gl.screen.active:
+                active.update()
         gl.player.update()
 
     def loop_end(self):

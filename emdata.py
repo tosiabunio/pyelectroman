@@ -30,8 +30,7 @@ class SpriteData:
         self.action = 0
         self.param = 0
         self.touch = 0
-        self.aux1 = 0
-        self.aux2 = 0
+        self.init = 0
 
     def load(self, set_name, number, status_bytes):
         self.__init__()
@@ -46,8 +45,7 @@ class SpriteData:
         self.action = status_bytes[1] & 0x1F
         self.param = status_bytes[2]
         self.touch = status_bytes[3]
-        self.aux1 = (status_bytes[1] & 0xE0) >> 5
-        self.aux2 = 0
+        self.init = (status_bytes[1] & 0xE0) >> 5
         # set up sprite bounding box from status bytes
         x = (status_bytes[4] & 0x7F) * 2
         y = (status_bytes[6] & 0x7F) * 2
@@ -176,6 +174,7 @@ class Level(LevelData):
                                20: self.__init_cannondown,
                                21: self.__init_flashspecial}
 
+
     def __init_cycle(self, sidx, position):
         sprite = self.get_sprite(sidx)
         entity = ga.Cycle([sprite], position)
@@ -192,8 +191,12 @@ class Level(LevelData):
         return entity
 
     def __init_pulseplus(self, sidx, position):
-        sprite = self.get_sprite(sidx)
-        entity = ga.PulsePlus([sprite], position)
+        ends = self.get_anim_ends(sidx)
+        sprites = self.get_anim(ends)
+        preceeding = self.get_sprite(ends[0] - 1)
+        entity = ga.PulsePlus(sprites, position)
+        entity.empty_delay = preceeding.param;
+        entity.set_initial_delay(self.get_sprite(sidx).init, preceeding.param)
         return entity
 
     def __init_flash(self, sidx, position):
@@ -295,6 +298,7 @@ class Level(LevelData):
         self.set2.load(set2_name)
         cntr = 0
         for s in range(256):
+            gl.init_screen_randoms(s)
             layers = self.data["screens"][s]
             if layers:
                 screen = Screen()

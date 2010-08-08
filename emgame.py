@@ -82,16 +82,14 @@ class FSM:
 
 
 class Entity:
-    def __init__(self, sprites, position, initial=0):
+    def __init__(self, sprites, position):
         assert isinstance(sprites, list)
         self.sprites = sprites
-        self.initial = initial
         if not isinstance(position, XY):
             raise ValueError("Entity position must by XY() instance.")
         self.position = position
         self.frame = 0
         self.delay = 0
-        self.counter = 0
 
     def set_position(self, position):
         """Set entity position"""
@@ -264,6 +262,25 @@ class Entity:
         # pylint: enable-msg=W0612
         return (XY.from_tuple(last_not_colliding), touched)
 
+    def set_initial_delay(self, mode, param):
+        pos = self.get_position()
+        if (mode == 0):
+            self.delay = ((pos.x / gl.SPRITE_X) + (pos.y / gl.SPRITE_Y)) % (param + 1)
+        elif (mode == 1):
+            self.delay = (pos.x / gl.SPRITE_X) % (param + 1)
+        elif (mode == 2):
+            self.delay = (pos.y / gl.SPRITE_Y) % (param + 1)
+        elif (mode == 3):
+            self.delay = 0
+        elif (mode == 4):
+            self.delay = gl.random(param + 1)
+        elif (mode == 5):
+            self.delay = gl.screen_randoms[pos.x / gl.SPRITE_X] % (param + 1)
+        elif (mode == 6):
+            self.delay = gl.screen_randoms[pos.y / gl.SPRITE_Y] % (param + 1)
+        elif (mode == 7):
+            self.frame = gl.random(len(self.sprites))
+            self.delay = 0
 
 class ScreenManager:
     __single = None
@@ -291,9 +308,9 @@ class ScreenManager:
     def change_screen(self, screen_number):
         if (screen_number < 0) or (screen_number > 255):
             raise ValueError("Screen number out of range (0, 255).")
+        gl.init_screen_randoms(screen_number)
         self.current_screen = screen_number
         self.screen = self.screens[self.current_screen]
-
 
 class ActiveCheckpoint:
     __single = None
@@ -345,14 +362,42 @@ class Pulse(Entity):
     def update(self):
         pass
 
-
 class PulsePlus(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
+        self.direction = 1  # 1 up -1 down
+        self.show = False
 
     def update(self):
-        pass
+        if self.delay > 0:
+            self.delay -= 1
+        else:
+            if not self.show:
+                self.show = True
+            self.frame += self.direction
+            if self.frame < 0:
+                self.show = False
+                self.frame = 0
+                self.direction *= -1
+            elif self.frame == len(self.sprites):
+                self.frame -= 1
+                self.direction *= -1
+            if self.show:
+                self.delay = self.sprites[self.frame].param
+            else:
+                self.delay = self.empty_delay
 
+    def display(self):
+        if self.show:
+            Entity.display(self)
+
+    def is_touchable(self):
+        if self.show:
+            return Entity.is_touchable(self)
+
+    def touch(self):
+        if self.show:
+            return Entity.touch(self)
 
 class Flash(Entity):
     def __init__(self, sprites, position):

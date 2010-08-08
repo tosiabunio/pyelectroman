@@ -38,7 +38,7 @@ show_collisions = False
 data_folder = r"data"  # defaul data folder
 level_names = ["elek", "koryt", "mieszk", "magaz",
                "fiolet", "10x10", "sluzy", "widok"]
-current_level = 0  # current level number
+current_level = 5  # current level number
 level = None  # currently loaded level
 
 # gameplay related globals
@@ -48,6 +48,11 @@ screen_manager = None  # screen manager
 loop_main_loop = True  # loop the main gameplay loop
 player = None  # player's character entity
 checkpoint = None  # active checkpoint
+
+# random numbers for active screen
+screen_randoms = []
+for r in range(SCREEN_X):
+    screen_randoms.append(0)
 
 # system related globals
 
@@ -128,6 +133,13 @@ class XY:
         return obj
 
 # other global functions
+
+def init_screen_randoms(screen_number):
+    srand(256 * screen_number + screen_number)
+    random(256)  # additional call for compatibility reasons
+    for i in range(SCREEN_X):
+        screen_randoms[i] = random(256)
+    srand(256 * screen_number + screen_number)
 
 # Borland C 3.1 rand()
 
