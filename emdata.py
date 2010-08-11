@@ -176,25 +176,37 @@ class Level(LevelData):
 
 
     def __init_cycle(self, sidx, position):
-        sprite = self.get_sprite(sidx)
-        entity = ga.Cycle([sprite], position)
+        ends = self.get_anim_ends(sidx)
+        sprites = self.get_anim(ends)
+        entity = ga.Cycle(sprites, position)
+        entity.frame = sidx - ends[0]
+        entity.set_initial_delay(self.get_sprite(sidx).init,
+                                 self.get_sprite(sidx).param)
         return entity
 
     def __init_cycleplus(self, sidx, position):
-        sprite = self.get_sprite(sidx)
-        entity = ga.CyclePlus([sprite], position)
+        ends = self.get_anim_ends(sidx)
+        sprites = self.get_anim(ends)
+        entity = ga.CyclePlus(sprites, position)
+        preceeding = self.get_sprite(ends[0] - 1)
+        entity.empty_delay = preceeding.param;
+        entity.set_initial_delay(self.get_sprite(sidx).init, preceeding.param)
         return entity
 
     def __init_pulse(self, sidx, position):
-        sprite = self.get_sprite(sidx)
-        entity = ga.Pulse([sprite], position)
+        ends = self.get_anim_ends(sidx)
+        sprites = self.get_anim(ends)
+        entity = ga.Pulse(sprites, position)
+        entity.frame = sidx - ends[0]
+        entity.set_initial_delay(self.get_sprite(sidx).init,
+                                 self.get_sprite(sidx).param)
         return entity
 
     def __init_pulseplus(self, sidx, position):
         ends = self.get_anim_ends(sidx)
         sprites = self.get_anim(ends)
-        preceeding = self.get_sprite(ends[0] - 1)
         entity = ga.PulsePlus(sprites, position)
+        preceeding = self.get_sprite(ends[0] - 1)
         entity.empty_delay = preceeding.param;
         entity.set_initial_delay(self.get_sprite(sidx).init, preceeding.param)
         return entity

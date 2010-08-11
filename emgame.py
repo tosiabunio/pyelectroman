@@ -344,23 +344,61 @@ class Cycle(Entity):
         Entity.__init__(self, sprites, position)
 
     def update(self):
-        pass
+        if self.delay > 0:
+            self.delay -= 1
+        else:
+            self.frame = (self.frame + 1) % len(self.sprites)
+            self.delay = self.sprites[self.frame].param
 
 
 class CyclePlus(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
+        self.show = False
 
     def update(self):
-        pass
+        if self.delay > 0:
+            self.delay -= 1
+        else:
+            if not self.show:
+                self.show = True
+            self.frame = (self.frame + 1) % len(self.sprites)
+            if self.frame == 0:
+                self.show = False
+            if self.show:
+                self.delay = self.sprites[self.frame].param
+            else:
+                self.delay = self.empty_delay
 
+    def display(self):
+        if self.show:
+            Entity.display(self)
+
+    def is_touchable(self):
+        if self.show:
+            return Entity.is_touchable(self)
+
+    def touch(self):
+        if self.show:
+            return Entity.touch(self)
 
 class Pulse(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
+        self.direction = 1  # 1 up -1 down
 
     def update(self):
-        pass
+        if self.delay > 0:
+            self.delay -= 1
+        else:
+            self.frame += self.direction
+            if self.frame < 0:
+                self.frame = 0
+                self.direction *= -1
+            elif self.frame == len(self.sprites):
+                self.frame -= 1
+                self.direction *= -1
+            self.delay = self.sprites[self.frame].param
 
 class PulsePlus(Entity):
     def __init__(self, sprites, position):
