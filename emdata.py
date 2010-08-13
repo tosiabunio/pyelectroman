@@ -395,7 +395,32 @@ class Level(LevelData):
 # test code below
 
 def main():
-    pass
+    import em
+    game = em.Game()
+    game.init()
+    gameplay = em.Gameplay()
+    for l in range(8):
+        lname = gl.level_names[l]
+        print "Level:", lname
+        level = Level()
+        level.load(lname)
+        for s in range(256):
+            screen = level.get_screen(s)
+            if screen:
+                actives = {}
+                for a in screen.active:
+                    name = a.name()
+                    if name in actives:
+                        actives[name] += 1
+                    else:
+                        actives[name] = 1
+                if actives:
+                    print "Screen %3d: " % s,
+                    for key, value in actives.items():
+                        print "%s(%d) " % (key, value),
+                    print
+
+    game.quit()
 
 if __name__ == "__main__":
     main()

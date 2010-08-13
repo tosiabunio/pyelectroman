@@ -133,6 +133,9 @@ class Entity:
         """Standard update method."""
         pass
 
+    def name(self):
+        return self.__class__.__name__
+
     def display(self):
         gl.display.blit(self.sprites[self.frame].image, self.get_position())
 
