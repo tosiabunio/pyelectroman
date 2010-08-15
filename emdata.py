@@ -161,7 +161,7 @@ class Level(LevelData):
                                6: self.__init_pulseplus,
                                7: self.__init_flash,
                                9: self.__init_rocketup,
-                               10: self.__init_rocketup,
+                               10: self.__init_rocketdown,
                                11: self.__init_killingfloor,
                                12: self.__init_checkpoint,
                                13: self.__init_teleport,
@@ -214,6 +214,7 @@ class Level(LevelData):
     def __init_flash(self, sidx, position):
         sprite = self.get_sprite(sidx)
         entity = ga.Flash([sprite], position)
+        entity.set_initial_delay(sprite.init, sprite.param)
         return entity
 
     def __init_flashplus(self, sidx, position):
@@ -290,7 +291,7 @@ class Level(LevelData):
 
     def __init_enemy(self, sidx, position):
         sprite = self.get_sprite(sidx)
-        entity = ga.Display([sprite], position)
+        entity = ga.Enemy([sprite], position)
         return entity
 
     def __get_active_entity(self, sidx, position):
