@@ -6,6 +6,7 @@ import emdata as da
 import emgame as ga
 import emdisplay as di
 import emhero as pl
+import emother as ot
 import sys
 import pygame
 import logging
@@ -19,11 +20,14 @@ class Gameplay:
             raise TypeError("Only one instance is allowed!")
         Gameplay.__single = self
         # sigleton protection code ends here
+        gl.data_folder = "data"
         gl.level = da.Level()
         self.controller = ga.Controller()
         # initialize a few global objects
         gl.screen_manager = ga.ScreenManager()
         gl.player = pl.PlayerEntity(self.controller)
+        gl.enemies = ot.Enemies()
+        gl.weapons = ot.Weapons()
         gl.checkpoint = ga.ActiveCheckpoint()
         # initialize rest
         self.loop = True
@@ -235,9 +239,7 @@ class Gameplay:
         di.show()
 
     def start(self):
-        gl.data_folder = "data"
         self.load_level()
-        gl.player.load()
 
     def run(self):
         gl.loop_main_loop = True

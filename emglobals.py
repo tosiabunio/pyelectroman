@@ -48,6 +48,8 @@ screen_manager = None  # screen manager
 loop_main_loop = True  # loop the main gameplay loop
 player = None  # player's character entity
 checkpoint = None  # active checkpoint
+enemies = None  # data class for enemies
+weapons = None  # data class for weapons
 
 # random numbers for active screen
 screen_randoms = []
@@ -58,8 +60,8 @@ for r in range(SCREEN_X):
 
 log_filename = "em.log"  # empty string disables logging to file
 
-# global classes
 
+# global classes
 
 class XY:
     """Class to keep x, y positions."""
@@ -131,6 +133,7 @@ class XY:
             raise ValueError("XY() object required.")
         obj = xy.copy()
         return obj
+
 
 # other global functions
 

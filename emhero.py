@@ -46,11 +46,6 @@ class PlayerEntity(ga.FSM, ga.Entity):
         self.counter = 0  # used to time some states
         self.screen = None  # current screen definition
         self.touched = None  # objects touched during recent move
-
-    def load(self):
-        """
-        Load player character sprite set and build sprite reference arrays.
-        """
         # load hero sprites
         self.data.load("hero")
         # prepare animation table

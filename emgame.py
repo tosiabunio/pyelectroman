@@ -559,13 +559,27 @@ class FlashSpecial(Entity):
     def update(self):
         pass
 
-class Enemy(Entity):
+class EnemyPlatform(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
 
     def update(self):
         pass
 
+
+class EnemyFlying(Entity):
+    def __init__(self, sprites, position):
+        Entity.__init__(self, sprites, position)
+
+    def update(self):
+        pass
+
+class Enemy(Entity):
+    def __init__(self, sprites, position):
+        Entity.__init__(self, sprites, position)
+
+    def update(self):
+        pass
 
 # -----------------------------------------------------------------------------
 # test code below
