@@ -128,6 +128,13 @@ class SpriteSet:
         assert number >= 0 and number < 64
         return self.sprites[number]
 
+    def get_anim(self, ends):
+        """Return anim sprites list based on 'ends' tuple"""
+        anim = []
+        for sidx in range(ends[0], ends[1] + 1):
+            anim.append(self.get_sprite(sidx))
+        return anim
+
 
 class Screen:
     def __init__(self):
