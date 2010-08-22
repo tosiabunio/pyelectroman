@@ -299,7 +299,15 @@ class Level(LevelData):
 
     def __init_enemy(self, sidx, position):
         sprite = self.get_sprite(sidx)
-        entity = ga.Enemy([sprite], position)
+        num = (sprite.param & 0x7F) / 3
+        anims, frames = gl.enemies.get_anims(num)
+        if (num == 2):  # enemy types can be hardcoded
+            entity = ga.EnemyFlying([sprite], position)
+        else:
+            entity = ga.EnemyPlatform([sprite], position)
+        entity.shoots = (sprite.param & 0x80) != 0
+        entity.anims = anims
+        entity.frames = frames
         return entity
 
     def __get_active_entity(self, sidx, position):

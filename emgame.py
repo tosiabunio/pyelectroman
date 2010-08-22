@@ -562,24 +562,28 @@ class FlashSpecial(Entity):
 class EnemyPlatform(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
+        self.frame = 0
+        self.anim = "MLEFT"
 
     def update(self):
         pass
 
+    def display(self):
+        gl.display.blit(self.anims[self.anim][self.frame].image,
+                        self.get_position())
 
 class EnemyFlying(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
+        self.frame = 0
+        self.anim = "MLEFT"
 
     def update(self):
         pass
 
-class Enemy(Entity):
-    def __init__(self, sprites, position):
-        Entity.__init__(self, sprites, position)
-
-    def update(self):
-        pass
+    def display(self):
+        gl.display.blit(self.anims[self.anim][self.frame].image,
+                        self.get_position())
 
 # -----------------------------------------------------------------------------
 # test code below

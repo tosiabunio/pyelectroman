@@ -47,9 +47,9 @@ class Enemies:
         self.enemy[3].anims["SRIGHT"] = self.data.get_anim((57, 57))
         self.enemy[3].frames["SRIGHT"] = len(self.enemy[3].anims["SRIGHT"])
 
-        def get_anims(self, enemy_num):
-            return (self.enemy[enemy_num].anims,
-                    self.enemy[enemy_num].frames)
+    def get_anims(self, enemy_num):
+        return (self.enemy[enemy_num].anims,
+                self.enemy[enemy_num].frames)
 
 class Weapons:
     def __init__(self):
