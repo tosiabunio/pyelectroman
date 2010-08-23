@@ -90,6 +90,7 @@ class Entity:
         self.position = position
         self.frame = 0
         self.delay = 0
+        self.deferred = None
 
     def set_position(self, position):
         """Set entity position"""
@@ -137,7 +138,16 @@ class Entity:
         return self.__class__.__name__
 
     def display(self):
+        sprite = self.sprites[self.frame]
+        if not sprite.flag("in_front"):
+            gl.display.blit(sprite.image, self.get_position())
+            self.deferred = None
+        else:
+            self.deferred = self.display_deferred
+
+    def display_deferred(self):
         gl.display.blit(self.sprites[self.frame].image, self.get_position())
+
 
     def display_collisions(self, color=pygame.Color(255, 0, 255)):
         x, y, w, h = self.sprites[0].bbox

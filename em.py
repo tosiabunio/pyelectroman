@@ -94,17 +94,26 @@ class Gameplay:
     def display_screen(self, screen):
         """Display all objects (active and background on the screen"""
         if screen:
-            for sprite in screen.background:
-                sprite.display()
-            for sprite in screen.collisions:
-                sprite.display()
+            for entity in screen.background:
+                entity.display()
+            for entity in screen.collisions:
+                entity.display()
                 if gl.show_collisions:
-                    sprite.display_collisions()
-            for sprite in screen.active:
-                sprite.display()
+                    entity.display_collisions()
+            for entity in screen.active:
+                entity.display()
                 if gl.show_collisions:
                     # show collision boxes
-                    sprite.display_collisions(pygame.Color(255, 255, 0))
+                    entity.display_collisions(pygame.Color(255, 255, 0))
+
+    def display_deferred(self, screen):
+        if screen:
+            for entity in screen.active:
+                if entity.deferred:
+                    entity.deferred()
+                    if gl.show_collisions:
+                        # show collision boxes
+                        entity.display_collisions(pygame.Color(255, 255, 0))
 
     def display_hero(self):
         """Display player's character"""
@@ -234,6 +243,7 @@ class Gameplay:
     def loop_end(self):
         self.display_screen(gl.screen)
         self.display_hero()
+        self.display_deferred(gl.screen)
         self.show_map((640 - 32 - 8, 8))
         self.show_info()
         di.show()
