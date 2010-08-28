@@ -47,6 +47,7 @@ class Gameplay:
         self.key_handlers[pygame.K_6] = self.on_k_6
         self.key_handlers[pygame.K_7] = self.on_k_7
         self.key_handlers[pygame.K_8] = self.on_k_8
+        self.deferred = None
 
     def init_map(self):
         """Initialize level map"""
@@ -100,27 +101,19 @@ class Gameplay:
                 entity.display()
                 if gl.show_collisions:
                     entity.display_collisions()
+            self.deferred = []
             for entity in screen.active:
-                entity.display()
-                if gl.show_collisions:
-                    # show collision boxes
-                    entity.display_collisions(pygame.Color(255, 255, 0))
+                deferred = entity.display()
+                if deferred:
+                    self.deferred.append(deferred)
 
     def display_deferred(self, screen):
-        if screen:
-            for entity in screen.active:
-                if entity.deferred:
-                    entity.deferred()
-                    if gl.show_collisions:
-                        # show collision boxes
-                        entity.display_collisions(pygame.Color(255, 255, 0))
+        for deferred in self.deferred:
+            deferred()
 
     def display_hero(self):
         """Display player's character"""
         gl.player.display()
-        if gl.show_collisions:
-            # show collision box and ground testing point
-            gl.player.display_collisions()
 
     def move_player(self, offset):
         position = gl.player.get_position() + offset

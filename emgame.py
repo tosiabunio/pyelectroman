@@ -141,17 +141,22 @@ class Entity:
         sprite = self.sprites[self.frame]
         if not sprite.flag("in_front"):
             gl.display.blit(sprite.image, self.get_position())
-            self.deferred = None
+            if gl.show_collisions and sprite.flag("active"):
+                # show collision box or lines
+                self.display_collisions(pygame.Color(255, 255, 0))
+            return None
         else:
-            self.deferred = self.display_deferred
+            return self.display_deferred
 
     def display_deferred(self):
         gl.display.blit(self.sprites[self.frame].image, self.get_position())
-
+        if gl.show_collisions:
+            # show collision box or lines
+            self.display_collisions(pygame.Color(255, 255, 0))
 
     def display_collisions(self, color=pygame.Color(255, 0, 255)):
-        x, y, w, h = self.sprites[0].bbox
-        collide = self.sprites[0].collide
+        x, y, w, h = self.sprites[self.frame].bbox
+        collide = self.sprites[self.frame].collide
         position = self.get_position()
         if collide["T"]:
             sp = position + (x, y)

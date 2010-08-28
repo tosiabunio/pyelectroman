@@ -101,6 +101,10 @@ class PlayerEntity(ga.FSM, ga.Entity):
         sprite = self.sprites[self.anim][self.frame][1]
         sprite = self.data.get_sprite(sprite)
         gl.display.blit(sprite.image, position)
+        if gl.show_collisions:
+            # show collision box and ground testing point
+            self.display_collisions()
+
 
     def display_collisions(self, color=pygame.Color(255, 128, 255)):
         """Display player's character bounding box."""
