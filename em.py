@@ -279,10 +279,8 @@ class Game:
 
     def quit(self):
         di.quit_display()
-        sys.exit()
 
-
-def main():
+def real_main():
     game = Game()
     game.init()
     gameplay = Gameplay()
@@ -290,6 +288,26 @@ def main():
     gameplay.run()
     gameplay.stop()
     game.quit()
+
+
+def profile_main():
+    # This is the main function for profiling
+    # We've renamed our original main() above to real_main()
+    import cProfile, pstats, StringIO
+    prof = cProfile.Profile()
+    prof = prof.runctx("real_main()", globals(), locals())
+    stream = StringIO.StringIO()
+    stats = pstats.Stats(prof, stream=stream)
+    stats.sort_stats("time")  # Or cumulative
+    stats.print_stats(80)  # 80 = how many to print
+    # The rest is optional.
+    #stats.print_callees()
+    #stats.print_callers()
+    logging.info("Profile data:\n%s", stream.getvalue())
+
+
+main = real_main
+
 
 if __name__ == "__main__":
     main()
