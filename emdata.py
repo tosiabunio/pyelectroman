@@ -3,7 +3,6 @@
 import emglobals as gl
 from emglobals import XY
 import emgame as ga
-import emother as ot
 import json
 import os
 import logging
@@ -161,6 +160,7 @@ class Level(LevelData):
         self.set2 = SpriteSet()
         self.screens = []
         self.start = None
+        self.name = None
         self.init_functions = {1: self.__init_cycle,
                                2: self.__init_pulse,
                                3: self.__init_monitor,
@@ -197,7 +197,7 @@ class Level(LevelData):
         sprites = self.get_anim(ends)
         entity = ga.CyclePlus(sprites, position)
         preceeding = self.get_sprite(ends[0] - 1)
-        entity.empty_delay = preceeding.param;
+        entity.empty_delay = preceeding.param
         entity.set_initial_delay(self.get_sprite(sidx).init, preceeding.param)
         return entity
 
@@ -215,7 +215,7 @@ class Level(LevelData):
         sprites = self.get_anim(ends)
         entity = ga.PulsePlus(sprites, position)
         preceeding = self.get_sprite(ends[0] - 1)
-        entity.empty_delay = preceeding.param;
+        entity.empty_delay = preceeding.param
         entity.set_initial_delay(self.get_sprite(sidx).init, preceeding.param)
         return entity
 
@@ -269,8 +269,13 @@ class Level(LevelData):
 
     def __init_teleport(self, sidx, position):
         sprite = self.get_sprite(sidx)
-        entity = ga.Teleport([sprite], position)
-        return entity
+        base = ga.Teleport([sprite], position)
+        if sprite.param == 1:
+            position += XY(0, -gl.SPRITE_Y)
+            sidx = self.get_anim_ends(sidx)[1] + 1
+            # signal that another object needs to instantiated
+            return (base, sidx, position)
+        return base
 
     def __init_exit(self, sidx, position):
         sprite = self.get_sprite(sidx)
@@ -356,7 +361,14 @@ class Level(LevelData):
             screen.collisions.append(entity)
         elif flags & 0x80:
             entity = self.__get_active_entity(sidx, position)
+            if isinstance(entity, tuple):
+                # tuple is returned if initialized object additional one
+                screen.active.append(entity[0])
+                entity[0].set_origin(len(screen.active) - 1)
+                # process additional object
+                entity = self.__get_active_entity(entity[1], entity[2])
             screen.active.append(entity)
+            entity.set_origin(len(screen.active) - 1)
             if isinstance(entity, ga.Checkpoint) and param == 1:
                 # active checkpoint - level start
                 level_number = gl.level_names.index(self.name)

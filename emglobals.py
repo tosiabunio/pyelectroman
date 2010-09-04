@@ -38,7 +38,7 @@ show_collisions = False
 data_folder = r"data"  # defaul data folder
 level_names = ["elek", "koryt", "mieszk", "magaz",
                "fiolet", "10x10", "sluzy", "widok"]
-current_level = 5  # current level number
+current_level = 0  # current level number
 level = None  # currently loaded level
 
 # gameplay related globals

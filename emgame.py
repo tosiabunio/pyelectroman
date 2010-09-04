@@ -1,9 +1,11 @@
 """Gameplay module"""
 
 import emglobals as gl
+import emdata as da
 from emglobals import XY
 import pygame
 import logging
+import copy
 
 
 class Controller:
@@ -91,6 +93,10 @@ class Entity:
         self.frame = 0
         self.delay = 0
         self.deferred = None
+        self.origin = None
+
+    def set_origin(self, index):
+        self.origin = index
 
     def set_position(self, position):
         """Set entity position"""
@@ -127,17 +133,22 @@ class Entity:
         return self.sprites[self.frame].flag("touchable")
 
     def touch(self):
-        """Standard touch handler."""
+        """Standard empty touch handler."""
         return self.__class__.__name__
 
     def update(self):
-        """Standard update method."""
+        """Standard empty update method."""
         pass
 
     def name(self):
+        """Return my class name."""
         return self.__class__.__name__
 
     def display(self):
+        """
+        Standard display method.
+        Use sprite indicate by self.frame
+        """
         sprite = self.sprites[self.frame]
         if not sprite.flag("in_front"):
             gl.display.blit(sprite.image, self.get_position())
@@ -149,12 +160,14 @@ class Entity:
             return self.display_deferred
 
     def display_deferred(self):
+        """Deferred display method usef for in_front sprites."""
         gl.display.blit(self.sprites[self.frame].image, self.get_position())
         if gl.show_collisions:
             # show collision box or lines
             self.display_collisions(pygame.Color(255, 255, 0))
 
     def display_collisions(self, color=pygame.Color(255, 0, 255)):
+        """Display collision lines depending on collision sides."""
         x, y, w, h = self.sprites[self.frame].bbox
         collide = self.sprites[self.frame].collide
         position = self.get_position()
@@ -210,7 +223,7 @@ class Entity:
         return result
 
     def check_collision(self, offset, screen, ignore_ground=False):
-        """Check collision at offset"""
+        """Check collision at offset."""
         collided = False
         if screen:
             me = self.get_bbox().copy()
@@ -235,7 +248,7 @@ class Entity:
         return collided
 
     def get_touching(self, offset, screen):
-        """Return objects touching at offset"""
+        """Return objects touching at offset."""
         touched = []
         if screen:
             me = self.get_bbox().copy()
@@ -248,7 +261,7 @@ class Entity:
         return touched
 
     def check_move(self, offset, screen, ignore_ground=False):
-        """Check move possibility (offset - move vector)"""
+        """Check move possibility (offset - move vector)."""
         ox, oy = offset
         touched = []
         assert (ox & oy & 0x01) == 0
@@ -281,9 +294,11 @@ class Entity:
         return (XY.from_tuple(last_not_colliding), touched)
 
     def set_initial_delay(self, mode, param):
+        """Set initial delay depending on mode or object's position."""
         pos = self.get_position()
         if (mode == 0):
-            self.delay = ((pos.x / gl.SPRITE_X) + (pos.y / gl.SPRITE_Y)) % (param + 1)
+            self.delay = ((pos.x / gl.SPRITE_X)
+                          + (pos.y / gl.SPRITE_Y)) % (param + 1)
         elif (mode == 1):
             self.delay = (pos.x / gl.SPRITE_X) % (param + 1)
         elif (mode == 2):
@@ -326,9 +341,19 @@ class ScreenManager:
     def change_screen(self, screen_number):
         if (screen_number < 0) or (screen_number > 255):
             raise ValueError("Screen number out of range (0, 255).")
-        gl.init_screen_randoms(screen_number)
-        self.current_screen = screen_number
-        self.screen = self.screens[self.current_screen]
+        if self.screens:
+            gl.init_screen_randoms(screen_number)
+            self.current_screen = screen_number
+            # changing screen reinitializes its content
+            self.screen = da.Screen()
+            cs = self.screens[self.current_screen]
+            if cs:
+                self.screen.background = copy.copy(cs.background)
+                self.screen.collisions = copy.copy(cs.collisions)
+                self.screen.active = copy.copy(cs.active)
+            else:
+                self.screen = None
+
 
 class ActiveCheckpoint:
     __single = None
@@ -373,6 +398,7 @@ class CyclePlus(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
         self.show = False
+        self.empty_delay = 0
 
     def update(self):
         if self.delay > 0:
@@ -423,6 +449,7 @@ class PulsePlus(Entity):
         Entity.__init__(self, sprites, position)
         self.direction = 1  # 1 up -1 down
         self.show = False
+        self.empty_delay = 0
 
     def update(self):
         if self.delay > 0:
@@ -459,124 +486,88 @@ class Flash(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
 
-    def update(self):
-        pass
-
 
 class FlashPlus(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
-
-    def update(self):
-        pass
 
 
 class RocketUp(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
 
-    def update(self):
-        pass
-
 
 class RocketDown(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
-
-    def update(self):
-        pass
 
 
 class KillingFloor(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
 
-    def update(self):
-        pass
-
 
 class Monitor(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
-
-    def update(self):
-        pass
 
 
 class Display(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
 
-    def update(self):
-        pass
-
 
 class Checkpoint(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
-
-    def update(self):
-        pass
 
 
 class Teleport(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
 
-    def update(self):
-        pass
+
+class TeleportBase(Entity):
+    def __init__(self, sprites, position):
+        Entity.__init__(self, sprites, position)
 
 
 class Exit(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
 
-    def update(self):
-        pass
-
 
 class CannonLeft(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
-
-    def update(self):
-        pass
 
 
 class CannonRight(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
 
-    def update(self):
-        pass
-
 
 class CannonUp(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
-
-    def update(self):
-        pass
 
 
 class CannonDown(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
 
-    def update(self):
-        pass
-
 
 class FlashSpecial(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
 
-    def update(self):
-        pass
 
 class EnemyPlatform(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
+        self.shoots = False
+        self.anims = None
+        self.frames = 0
         self.frame = 0
         self.anim = "MLEFT"
 
@@ -590,6 +581,9 @@ class EnemyPlatform(Entity):
 class EnemyFlying(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
+        self.shoots = False
+        self.anims = None
+        self.frames = 0
         self.frame = 0
         self.anim = "MLEFT"
 

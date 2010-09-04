@@ -7,7 +7,6 @@ import emgame as ga
 import emdisplay as di
 import emhero as pl
 import emother as ot
-import sys
 import pygame
 import logging
 
@@ -107,7 +106,7 @@ class Gameplay:
                 if deferred:
                     self.deferred.append(deferred)
 
-    def display_deferred(self, screen):
+    def display_deferred(self):
         for deferred in self.deferred:
             deferred()
 
@@ -236,7 +235,7 @@ class Gameplay:
     def loop_end(self):
         self.display_screen(gl.screen)
         self.display_hero()
-        self.display_deferred(gl.screen)
+        self.display_deferred()
         self.show_map((640 - 32 - 8, 8))
         self.show_info()
         di.show()
