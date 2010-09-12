@@ -9,6 +9,7 @@ import emhero as pl
 import emother as ot
 import pygame
 import logging
+import time
 
 
 class Gameplay:
@@ -233,11 +234,17 @@ class Gameplay:
         gl.player.update()
 
     def loop_end(self):
+        render_start = time.clock()
         self.display_screen(gl.screen)
         self.display_hero()
         self.display_deferred()
         self.show_map((640 - 32 - 8, 8))
         self.show_info()
+
+    def show(self):
+        """Display the screen."""
+        di.message(XY(500, 8),"logic: {0:>4.1f}\nrender: {1:>4.1f}".format(
+            round(gl.logic_time * 1000, 1), round(gl.render_time * 1000, 1)))
         di.show()
 
     def start(self):
@@ -247,10 +254,19 @@ class Gameplay:
         gl.loop_main_loop = True
         clock = pygame.time.Clock()
         while gl.loop_main_loop:
+            # logic processing starts here
+            logic_start = time.clock()
             self.loop_begin()
             self.loop_events()
             self.loop_run()
+            gl.logic_time = time.clock() - logic_start
+            # logic processing ended
+            # rendering starts here
+            render_start = time.clock()
             self.loop_end()
+            gl.render_time = time.clock() - render_start
+            # rendering ended
+            self.show() # show the screen
             clock.tick(20)  # keep constant frame rate (20fps)
 
     def stop(self):
@@ -275,6 +291,7 @@ class Game:
 
     def init(self):
         di.init_display()
+        time.clock()
 
     def quit(self):
         di.quit_display()

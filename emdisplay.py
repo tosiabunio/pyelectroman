@@ -35,7 +35,7 @@ def message(position, txt, font=None, antialias=False,
     """
     Display message on the screen. Uses entire surface.
 
-    position - (x, y) (also XY(x, y))
+    position - XY(x, y)
     txt - string (can contain newlines)
     font - pygame.Font
     antialias - True or False
@@ -45,10 +45,11 @@ def message(position, txt, font=None, antialias=False,
     """
     font = gl.font["small"] if font is None else font
     lines = txt.split('\n')
+    cpos = XY.from_self(position)
     for line in lines:
         lsurf = font.render(line, antialias, color)
-        gl.window.blit(lsurf, position)
-        cpos = XY(position[0], position[1] + int(font.get_height() * 1.05))
+        gl.window.blit(lsurf, cpos)
+        cpos.y += int(font.get_height() * 1.05)
     return cpos
 
 
@@ -93,7 +94,7 @@ def main():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     loop = False
-        nextp = message((0, 0), "message1\nmessage2")
+        nextp = message(XY(0, 0), "message1\nmessage2")
         message(nextp, "message3\nmessage4")
         show()
     quit_display()

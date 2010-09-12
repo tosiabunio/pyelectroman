@@ -276,7 +276,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
             names = ""
             for obj in self.touched:
                 names += " | " + obj.touch()
-            di.message((8, 20), "touching: %s" % names)
+            di.message(XY(8, 20), "touching: %s" % names)
 
     def stand(self, position):
         """Place player's model feet at position"""
@@ -330,7 +330,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
         self.check_touch()
         # keep track of to ground distance
         self.to_ground = self.check_ground(self.screen)
-        di.message((8, 8), "to ground: %d" % self.to_ground)
+        di.message(XY(8, 8), "to ground: %d" % self.to_ground)
         # run FSM for the player's entity
         if not self.controller.debug:
             self.run_fsm()

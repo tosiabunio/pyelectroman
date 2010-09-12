@@ -93,7 +93,7 @@ class Entity:
         self.frame = 0
         self.delay = 0
         self.deferred = None
-        self.origin = None
+        self.origin = position  # should be enough to delete from map if needed
 
     def set_origin(self, index):
         self.origin = index
@@ -444,6 +444,7 @@ class Pulse(Entity):
                 self.direction *= -1
             self.delay = self.sprites[self.frame].param
 
+
 class PulsePlus(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
@@ -490,6 +491,35 @@ class Flash(Entity):
 class FlashPlus(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
+        self.show = False
+
+    def display(self):
+        if self.show:
+            Entity.display(self)
+
+    def update(self):
+        if self.delay > 0:
+            self.delay -= 1
+        else:
+            self.show = not self.show
+            self.delay = self.sprites[self.frame].param
+
+
+class FlashSpecial(Entity):
+    def __init__(self, sprites, position):
+        Entity.__init__(self, sprites, position)
+        self.show = False
+
+    def display(self):
+        if self.show:
+            Entity.display(self)
+
+    def update(self):
+        if self.delay > 0:
+            self.delay -= 1
+        else:
+            self.show = not self.show
+            self.delay = 2
 
 
 class RocketUp(Entity):
@@ -553,11 +583,6 @@ class CannonUp(Entity):
 
 
 class CannonDown(Entity):
-    def __init__(self, sprites, position):
-        Entity.__init__(self, sprites, position)
-
-
-class FlashSpecial(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
 
