@@ -110,14 +110,14 @@ procs = ["",  #0 unused
          "display(%d, %s)",  #4
          "cycleplus(%d, %s)",  #5
          "pulseplus(%d, %s)",  #6
-         "flash(%d, %s)",   #7
+         "flashplus(%d, %s)",   #7
          "",  #8 unused
          "rocketup(%d, %s)",  #9
          "rocketdown(%d, %s)",  #10
          "killingfloor(%d, %s)",  #11
          "checkpoint(%d, %s)",  #12
          "teleport(%d, %s)", #13
-         "flashplus(%d, %s)",  #14
+         "flash(%d, %s)",  #14
          "exit(%d, %s)",  #15
          "enemy(%d, %s)",  #16
          "cannonleft(%d, %s)",  #17
@@ -125,6 +125,7 @@ procs = ["",  #0 unused
          "cannonup(%d, %s)",  #19
          "cannondown(%d, %s)",  #20
          "flashspecial(%d, %s)"]  #21
+
 
 frame_cycles = ["diag", "x", "y", "const", "rand", "rand x const",
                 "rand y const", "rand start"]

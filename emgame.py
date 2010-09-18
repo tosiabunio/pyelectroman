@@ -486,6 +486,18 @@ class PulsePlus(Entity):
 class Flash(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
+        self.show = False
+
+    def display(self):
+        if self.show:
+            Entity.display(self)
+
+    def update(self):
+        if self.delay > 0:
+            self.delay -= 1
+        else:
+            self.show = not self.show
+            self.delay = self.sprites[self.frame].param
 
 
 class FlashPlus(Entity):
@@ -503,6 +515,10 @@ class FlashPlus(Entity):
         else:
             self.show = not self.show
             self.delay = self.sprites[self.frame].param
+
+    def touch(self):
+        if self.show:
+            return Entity.touch(self)
 
 
 class FlashSpecial(Entity):

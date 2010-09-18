@@ -167,13 +167,13 @@ class Level(LevelData):
                                4: self.__init_display,
                                5: self.__init_cycleplus,
                                6: self.__init_pulseplus,
-                               7: self.__init_flash,
+                               7: self.__init_flashplus,
                                9: self.__init_rocketup,
                                10: self.__init_rocketdown,
                                11: self.__init_killingfloor,
                                12: self.__init_checkpoint,
                                13: self.__init_teleport,
-                               14: self.__init_flashplus,
+                               14: self.__init_flash,
                                15: self.__init_exit,
                                16: self.__init_enemy,
                                17: self.__init_cannonleft,
@@ -225,9 +225,16 @@ class Level(LevelData):
         entity.set_initial_delay(sprite.init, sprite.param)
         return entity
 
+    def __init_flashspecial(self, sidx, position):
+        sprite = self.get_sprite(sidx)
+        entity = ga.FlashSpecial([sprite], position)
+        entity.set_initial_delay(sprite.init, sprite.param)
+        return entity
+
     def __init_flashplus(self, sidx, position):
         sprite = self.get_sprite(sidx)
         entity = ga.FlashPlus([sprite], position)
+        entity.set_initial_delay(sprite.init, sprite.param)
         return entity
 
     def __init_display(self, sidx, position):
@@ -236,13 +243,9 @@ class Level(LevelData):
         return entity
 
     def __init_monitor(self, sidx, position):
+        # it doesn't seem to be used
         sprite = self.get_sprite(sidx)
         entity = ga.Monitor([sprite], position)
-        return entity
-
-    def __init_flashspecial(self, sidx, position):
-        sprite = self.get_sprite(sidx)
-        entity = ga.FlashSpecial([sprite], position)
         return entity
 
     def __init_rocketup(self, sidx, position):
