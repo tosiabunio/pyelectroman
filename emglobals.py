@@ -107,6 +107,17 @@ class XY:
         y = self.y + other.y
         return XY(x, y)
 
+    def __sub__(self, other):
+        """Subtract another XY() or (x, y) tuple."""
+        if isinstance(other, tuple) and len(other) == 2:
+            other = XY.from_tuple(other)
+        if not isinstance(other, XY):
+            raise NotImplementedError(
+                "Only XY() or (x, y) addition implemented.")
+        x = self.x - other.x
+        y = self.y - other.y
+        return XY(x, y)
+		
     def __str__(self):
         """Return human-readable representation."""
         return "XY(%d, %d)" % (self.x, self.y)
