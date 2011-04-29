@@ -13,13 +13,9 @@ class Controller:
     Class representing player's input.
     Currently only keyboard is reported.
     Joystick and gamepad controllers planned for the future.
+    Singleton by design.
     """
-    __single = None
-
     def __init__(self):
-        if Controller.__single:
-            raise TypeError("Only one instance is allowed!")
-        Controller.__single = self
         # pylint complains when those are defined via calling clear()
         self.left = False
         self.right = False
@@ -108,7 +104,13 @@ class Entity:
     def get_position(self):
         """
         Return entity's position as XY(x, y).
-        The copy is returned to prevent overwriting by referring code.
+        May be changed by the referring code!
+        """
+        return self.position
+
+    def copy_position(self):
+        """
+        Return a copy of entity's position as XY(x, y).
         """
         return self.position.copy()
 
@@ -316,12 +318,12 @@ class Entity:
             self.delay = 0
 
 class ScreenManager:
-    __single = None
-
+    """
+    Screen manager class.
+    Manages rooms (screens) from loaded level.
+    Singleton by design.
+    """
     def __init__(self):
-        if ScreenManager.__single:
-            raise TypeError("Only one instance is allowed!")
-        ScreenManager.__single = self
         self.current_screen = 0  # current screen
         self.screens = None  # all screens
         self.screen = None  # current screen definition
@@ -356,13 +358,12 @@ class ScreenManager:
 
 
 class ActiveCheckpoint:
-    __single = None
-
+    """
+    Active checkpoint class.
+    References currently active checkpoint.
+    Singleton by design.
+    """
     def __init__(self):
-        if ActiveCheckpoint.__single:
-            raise TypeError("Only one instance is allowed!")
-        ActiveCheckpoint.__single = self
-        # sigleton protection code ends here
         self.level = None
         self.screen = None
         self.position = None

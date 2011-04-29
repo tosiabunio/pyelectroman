@@ -4,6 +4,7 @@ import emglobals as gl
 from emglobals import XY
 import pygame
 import logging
+import time
 
 
 def init_display():
@@ -27,6 +28,7 @@ def clear_screen():
 
 
 def show():
+    info_lines.show()
     pygame.display.flip()
 
 
@@ -52,17 +54,42 @@ def message(position, txt, font=None, antialias=False,
         cpos.y += int(font.get_height() * 1.05)
     return cpos
 
+class InfoLines:
+    """
+    Several information lines.
+    Autoscrolling up.
+    Limited visibility time.
+    """
+    def __init__(self, position, max_lines, max_time):
+        self.lines = []
+        self.max_time = max_time
+        self.max_lines = max_lines
+        self.position = position
+        self.font = gl.font["xsmall"]
+        self.update = 0
+
+    def add(self, text):
+        if len(self.lines) == self.max_lines:
+            self.lines.pop(0)
+        self.lines.append(text)
+        self.update = time.clock()
+
+    def show(self):
+        pos = self.position.copy()
+        for line in self.lines:
+            pos = message(pos, line)
+        if (time.clock() - self.update > self.max_time) and self.lines:
+            self.lines.pop(0)
+            self.update = time.clock()
+
+info_lines = InfoLines(XY(180, 8), 5, 5) #default info lines buffer
 
 class StatusLine:
     """
     Handle status line display.
+    Singleton by design.
     """
-    __single = None
-
     def __init__(self):
-        if StatusLine.__single:
-            raise TypeError("Only one instance is allowed!")
-        StatusLine.__single = self
         self.message = ""
         self.font = gl.font["xsmall"]
         self.position = XY(8, 465)

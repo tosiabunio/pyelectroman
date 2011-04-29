@@ -13,13 +13,11 @@ import time
 
 
 class Gameplay:
-    __single = None
-
+    """
+    Main gameplay functionality class.
+    Singleton by design.
+    """
     def __init__(self):
-        if Gameplay.__single:
-            raise TypeError("Only one instance is allowed!")
-        Gameplay.__single = self
-        # sigleton protection code ends here
         gl.data_folder = "data"
         gl.level = da.Level()
         self.controller = ga.Controller()
@@ -274,13 +272,11 @@ class Gameplay:
 
 
 class Game:
-    __single = None
-
+    """
+    Main game class.
+    Singleton by design.
+    """
     def __init__(self):
-        if Game.__single:
-            raise TypeError("Only one instance is allowed!")
-        Game.__single = self
-        # sigleton protection code ends here
         if gl.log_filename:
             logging.basicConfig(level=logging.DEBUG)
         else:
@@ -291,12 +287,13 @@ class Game:
 
     def init(self):
         di.init_display()
+        di.info_lines.add("pyelectroman started")
         time.clock()
 
     def quit(self):
         di.quit_display()
 
-def real_main():
+def fast_main():
     game = Game()
     game.init()
     gameplay = Gameplay()
@@ -314,15 +311,15 @@ def profile_main():
     prof = prof.runctx("real_main()", globals(), locals())
     stream = StringIO.StringIO()
     stats = pstats.Stats(prof, stream=stream)
-    stats.sort_stats("time")  # Or cumulative
-    stats.print_stats(80)  # 80 = how many to print
+    stats.sort_stats("calls")
+    stats.print_stats(80)  # how many to print
     # The rest is optional.
     #stats.print_callees()
     #stats.print_callers()
     logging.info("Profile data:\n%s", stream.getvalue())
 
 
-main = real_main
+main = fast_main
 
 
 if __name__ == "__main__":

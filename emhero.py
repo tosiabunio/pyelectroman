@@ -21,14 +21,9 @@ class PlayerEntity(ga.FSM, ga.Entity):
     Only single instance is allowed.
     Uses Finite State Machine.
     Requires supplying ga.Controller class for player's input.
+    Singleton by design.
     """
-    __single = None
-
     def __init__(self, controller):
-        if PlayerEntity.__single:
-            raise TypeError("Only one instance is allowed!")
-        PlayerEntity.__single = self
-        # sigleton protection code ends here
         ga.Entity.__init__(self, [da.EmptySprite()], XY(0, 0))
         ga.FSM.__init__(self)
         self.controller = controller
