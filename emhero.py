@@ -6,7 +6,6 @@ import emdisplay as di
 import emdata as da
 import emgame as ga
 import pygame
-import logging
 
 # horizontal move vector
 MOVE_STEP = 8
@@ -15,6 +14,13 @@ JUMP_STEPS = [20, 18, 16, 12, 10, 8, 6, 4, 2, 0]
 FALL_STEPS = [2, 4, 6, 8, 10, 12, 16, 18, 20, 22, 24,
               26, 28, 32, 34, 36, 38, 40, 42, 44, 48]
 
+# touch procedure names
+touch_procs = {0 : "none", 1 : "battery", 2 : "teleport", 3 :"checkpoint",
+               4 : "killer", 5 : "floppy", 6 :  "exit",
+               7 : "special good", 8 : "special bad"}
+
+
+#noinspection PySimplifyBooleanCheck
 class PlayerEntity(ga.FSM, ga.Entity):
     """
     Player's entity class, extends ga.Entity.
@@ -177,7 +183,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
             return self.switch_state(self.state_land)
         else:
             self.move_vector.y = FALL_STEPS[self.jump]
-            if (self.to_ground < self.move_vector.y):
+            if self.to_ground < self.move_vector.y:
                 self.move_vector.y = self.to_ground
             moved = self.move()
             # reset horizontal vector if wall hit while falling
@@ -270,8 +276,37 @@ class PlayerEntity(ga.FSM, ga.Entity):
             # process touch
             names = ""
             for obj in self.touched:
-                names += " | " + obj.touch()
-            di.message(XY(8, 20), "touching: %s" % names)
+                # inform touched entity about the touch
+                touch_type = obj.get_touch()
+                names += touch_procs[touch_type] + " "
+                # handle touch according to its type
+                if touch_type == 1:
+                    # battery
+                    obj.vanish()  # remove battery from the map
+                    pass
+                elif touch_type == 2:
+                    # teleport
+                    pass
+                elif touch_type == 3:
+                    # checkpoint
+                    pass
+                elif touch_type == 4:
+                    # killer
+                    pass
+                elif touch_type == 5:
+                    # floppy
+                    obj.vanish()  # remove floppy from the map
+                    pass
+                elif touch_type == 6:
+                    # exit
+                    pass
+                elif touch_type == 7:
+                    # special good
+                    pass
+                elif touch_type == 8:
+                    # special bad
+                    pass
+            di.message(XY(8, 20), "touch: %s" % names)
 
     def stand(self, position):
         """Place player's model feet at position"""

@@ -13,11 +13,6 @@ flag_masks = {"active" : 0x80, "touchable" : 0x40, "shootable" : 0x20,
               "in_front" : 0x04, "last_frame" : 0x02, "first_frame" : 0x01}
 
 
-touch_procs = {0 : "none", 1 : "battery", 2 : "teleport", 3 :"checkpoint",
-               4 : "killer", 5 : "floppy", 6 :  "exit",
-               7 : "special good", 8 : "special bad"}
-
-
 class SpriteData:
     def __init__(self):
         self.image = None
@@ -277,7 +272,7 @@ class Level(LevelData):
             position += XY(0, -gl.SPRITE_Y)
             sidx = self.get_anim_ends(sidx)[1] + 1
             # signal that another object needs to instantiated
-            return (base, sidx, position)
+            return base, sidx, position
         return base
 
     def __init_exit(self, sidx, position):
@@ -309,7 +304,7 @@ class Level(LevelData):
         sprite = self.get_sprite(sidx)
         num = (sprite.param & 0x7F) / 3
         anims, frames = gl.enemies.get_anims(num)
-        if (num == 2):  # enemy types can be hardcoded
+        if num == 2:  # enemy types can be hardcoded
             entity = ga.EnemyFlying([sprite], position)
         else:
             entity = ga.EnemyPlatform([sprite], position)
@@ -365,13 +360,13 @@ class Level(LevelData):
         elif flags & 0x80:
             entity = self.__get_active_entity(sidx, position)
             if isinstance(entity, tuple):
-                # tuple is returned if initialized object additional one
+                # tuple is returned if initialized object has additional one
+                entity[0].set_origin(screen)  # remember screen for deletion
                 screen.active.append(entity[0])
-                entity[0].set_origin(len(screen.active) - 1)
                 # process additional object
                 entity = self.__get_active_entity(entity[1], entity[2])
+            entity.set_origin(screen)  # remember screen for deletion
             screen.active.append(entity)
-            entity.set_origin(len(screen.active) - 1)
             if isinstance(entity, ga.Checkpoint) and param == 1:
                 # active checkpoint - level start
                 level_number = gl.level_names.index(self.name)
@@ -414,7 +409,7 @@ class Level(LevelData):
                 break
             s += 1
         s = min(s, 127)
-        return (start, s)
+        return start, s
 
     def get_anim(self, ends):
         """Return anim sprites list based on 'ends' tuple"""
@@ -430,7 +425,6 @@ def main():
     import em
     game = em.Game()
     game.init()
-    gameplay = em.Gameplay()
     for l in range(8):
         lname = gl.level_names[l]
         print "Level:", lname
@@ -451,7 +445,6 @@ def main():
                     for key, value in actives.items():
                         print "%s(%d) " % (key, value),
                     print
-
     game.quit()
 
 if __name__ == "__main__":

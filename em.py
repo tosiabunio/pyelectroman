@@ -30,21 +30,11 @@ class Gameplay:
         # initialize rest
         self.loop = True
         self.screens_map = None
-        self.key_handlers = {}
-        self.key_handlers[pygame.K_ESCAPE] = self.on_k_escape
-        self.key_handlers[pygame.K_TAB] = self.on_k_tab
-        self.key_handlers[pygame.K_LEFT] = self.on_k_left
-        self.key_handlers[pygame.K_RIGHT] = self.on_k_right
-        self.key_handlers[pygame.K_UP] = self.on_k_up
-        self.key_handlers[pygame.K_DOWN] = self.on_k_down
-        self.key_handlers[pygame.K_1] = self.on_k_1
-        self.key_handlers[pygame.K_2] = self.on_k_2
-        self.key_handlers[pygame.K_3] = self.on_k_3
-        self.key_handlers[pygame.K_4] = self.on_k_4
-        self.key_handlers[pygame.K_5] = self.on_k_5
-        self.key_handlers[pygame.K_6] = self.on_k_6
-        self.key_handlers[pygame.K_7] = self.on_k_7
-        self.key_handlers[pygame.K_8] = self.on_k_8
+        self.key_handlers = {pygame.K_ESCAPE: self.on_k_escape, pygame.K_TAB: self.on_k_tab,
+                             pygame.K_LEFT: self.on_k_left, pygame.K_RIGHT: self.on_k_right, pygame.K_UP: self.on_k_up,
+                             pygame.K_DOWN: self.on_k_down, pygame.K_1: self.on_k_1, pygame.K_2: self.on_k_2,
+                             pygame.K_3: self.on_k_3, pygame.K_4: self.on_k_4, pygame.K_5: self.on_k_5,
+                             pygame.K_6: self.on_k_6, pygame.K_7: self.on_k_7, pygame.K_8: self.on_k_8}
         self.deferred = None
 
     def init_map(self):
@@ -132,7 +122,7 @@ class Gameplay:
             cs += 1 if cs < 255 else -255
             gl.screen_manager.change_screen(cs)
         elif pygame.key.get_mods() & pygame.KMOD_SHIFT:
-            if gl.player.get_x() <= (gl.MAX_X):
+            if gl.player.get_x() <= gl.MAX_X:
                 self.move_player((gl.SPRITE_X, 0))
 
     def on_k_up(self):
@@ -232,7 +222,6 @@ class Gameplay:
         gl.player.update()
 
     def loop_end(self):
-        render_start = time.clock()
         self.display_screen(gl.screen)
         self.display_hero()
         self.display_deferred()

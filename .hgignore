@@ -1,1 +1,3 @@
 glob:*.pyc
+syntax: glob
+.idea

@@ -4,7 +4,6 @@ import emglobals as gl
 import emdata as da
 from emglobals import XY
 import pygame
-import logging
 import copy
 
 
@@ -89,10 +88,10 @@ class Entity:
         self.frame = 0
         self.delay = 0
         self.deferred = None
-        self.origin = position  # should be enough to delete from map if needed
+        self.origin = None
 
-    def set_origin(self, index):
-        self.origin = index
+    def set_origin(self, screen):
+        self.origin = screen
 
     def set_position(self, position):
         """Set entity position"""
@@ -134,9 +133,12 @@ class Entity:
     def is_touchable(self):
         return self.sprites[self.frame].flag("touchable")
 
-    def touch(self):
-        """Standard empty touch handler."""
-        return self.__class__.__name__
+    def get_touch(self):
+        return self.sprites[self.frame].touch
+
+    def vanish(self):
+        """Remove itself from its original screen"""
+        gl.screen_manager.get_screen().active.remove(self)
 
     def update(self):
         """Standard empty update method."""
@@ -179,7 +181,7 @@ class Entity:
             pygame.draw.line(gl.display, color, sp, ep, 1)
         if collide["L"]:
             sp = position + (x, y)
-            ep = ep = position + (x, y + h - 1)
+            ep = position + (x, y + h - 1)
             pygame.draw.line(gl.display, color, sp, ep, 1)
         if collide["R"]:
             sp = position + (x + w - 1, y)
@@ -269,7 +271,7 @@ class Entity:
         assert (ox & oy & 0x01) == 0
         if (ox == 0) and (oy == 0):
             touched.extend(self.get_touching((0, 0), screen))
-            return (XY(0, 0), touched)
+            return XY(0, 0), touched
         nx, ny = 0, 0
         last_not_colliding = 0, 0
         swap_xy = False
@@ -293,27 +295,27 @@ class Entity:
                 break
             last_not_colliding = current_offset
         # pylint: enable-msg=W0612
-        return (XY.from_tuple(last_not_colliding), touched)
+        return XY.from_tuple(last_not_colliding), touched
 
     def set_initial_delay(self, mode, param):
         """Set initial delay depending on mode or object's position."""
         pos = self.get_position()
-        if (mode == 0):
+        if mode == 0:
             self.delay = ((pos.x / gl.SPRITE_X)
                           + (pos.y / gl.SPRITE_Y)) % (param + 1)
-        elif (mode == 1):
+        elif mode == 1:
             self.delay = (pos.x / gl.SPRITE_X) % (param + 1)
-        elif (mode == 2):
+        elif mode == 2:
             self.delay = (pos.y / gl.SPRITE_Y) % (param + 1)
-        elif (mode == 3):
+        elif mode == 3:
             self.delay = 0
-        elif (mode == 4):
+        elif mode == 4:
             self.delay = gl.random(param + 1)
-        elif (mode == 5):
+        elif mode == 5:
             self.delay = gl.screen_randoms[pos.x / gl.SPRITE_X] % (param + 1)
-        elif (mode == 6):
+        elif mode == 6:
             self.delay = gl.screen_randoms[pos.y / gl.SPRITE_Y] % (param + 1)
-        elif (mode == 7):
+        elif mode == 7:
             self.frame = gl.random(len(self.sprites))
             self.delay = 0
 
@@ -423,9 +425,11 @@ class CyclePlus(Entity):
         if self.show:
             return Entity.is_touchable(self)
 
-    def touch(self):
+    def get_touch(self):
         if self.show:
-            return Entity.touch(self)
+            return Entity.get_touch(self)
+        else:
+            return 0
 
 class Pulse(Entity):
     def __init__(self, sprites, position):
@@ -480,9 +484,11 @@ class PulsePlus(Entity):
         if self.show:
             return Entity.is_touchable(self)
 
-    def touch(self):
+    def get_touch(self):
         if self.show:
-            return Entity.touch(self)
+            return Entity.get_touch(self)
+        else:
+            return 0
 
 class Flash(Entity):
     def __init__(self, sprites, position):
@@ -517,9 +523,11 @@ class FlashPlus(Entity):
             self.show = not self.show
             self.delay = self.sprites[self.frame].param
 
-    def touch(self):
+    def get_touch(self):
         if self.show:
-            return Entity.touch(self)
+            return Entity.get_touch(self)
+        else:
+            return 0
 
 
 class FlashSpecial(Entity):
