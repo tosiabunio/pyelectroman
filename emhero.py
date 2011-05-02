@@ -268,6 +268,28 @@ class PlayerEntity(ga.FSM, ga.Entity):
         if self.controller.up:
             return self.switch_state(self.state_jump)
 
+    def state_teleport_out(self, init=False):
+        if init:
+            self.anim = "TELE"
+            self.counter = self.frames[self.anim] - 1
+            self.frame = 0
+        if not init:
+            if self.counter == 0:
+                return self.new_state(self.state_teleport_in)
+            self.frame += 1
+            self.counter -= 1
+
+    def state_teleport_in(self, init=False):
+        if init:
+            self.anim = "TELE"
+            self.counter = self.frames[self.anim] - 1
+            self.frame = self.frames[self.anim] - 1
+        if not init:
+            if self.counter == 0:
+                return self.new_state(self.state_stand)
+            self.frame -= 1
+            self.counter -= 1
+
     def handle_touch(self):
         if self.touched:
             # remove duplicates
@@ -285,6 +307,8 @@ class PlayerEntity(ga.FSM, ga.Entity):
                     obj.vanish()  # remove battery from the map
                     pass
                 elif touch_type == 2:
+                    if self.controller.down:
+                        self.new_state(self.state_teleport_out)
                     # teleport
                     pass
                 elif touch_type == 3:
