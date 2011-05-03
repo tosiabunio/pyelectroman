@@ -138,7 +138,7 @@ class Entity:
 
     def vanish(self):
         """Remove itself from its original screen"""
-        gl.screen_manager.get_screen().active.remove(self)
+        gl.screen_manager.get_screen_number().active.remove(self)
 
     def update(self):
         """Standard empty update method."""
@@ -334,13 +334,29 @@ class ScreenManager:
         self.screens = screens
 
     def get_screen(self):
+        """
+        Return active screen definition.
+        """
         return self.screen
 
     def get_all_screens(self):
+        """
+        Return all screen definitions.
+        """
         return self.screens
 
-    def get_current_screen(self):
+    def get_current_screen_number(self):
         return self.current_screen
+
+    def inspect_screen(self, screen_number):
+        """
+        Return screen definition for inspection.
+        Don't initialize it (the current screen won't change.
+        """
+        if (screen_number < 0) or (screen_number > 255):
+            raise ValueError("Screen number out of range (0, 255).")
+        if self.screens:
+            return self.screens[screen_number]
 
     def change_screen(self, screen_number):
         if (screen_number < 0) or (screen_number > 255):

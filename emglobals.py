@@ -50,6 +50,7 @@ player = None  # player's character entity
 checkpoint = None  # active checkpoint
 enemies = None  # data class for enemies
 weapons = None  # data class for weapons
+screen = None  # current screen definition
 
 # random numbers for active screen
 screen_randoms = []
@@ -183,7 +184,7 @@ def rand():
 
 def random(num):
     """ #define random(num)(int)(((long)rand()*(num))/(RAND_MAX+1)) """
-    return int((rand() * num) / (0x8000))
+    return int((rand() * num) / 0x8000)
 
 # -----------------------------------------------------------------------------
 # test code below

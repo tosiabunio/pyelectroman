@@ -47,6 +47,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
         self.counter = 0  # used to time some states
         self.screen = None  # current screen definition
         self.touched = None  # objects touched during recent move
+        self.teleport_target = None  # tuple holding teleport destination target
         # load hero sprites
         self.data.load("hero")
         # prepare animation table
@@ -290,6 +291,9 @@ class PlayerEntity(ga.FSM, ga.Entity):
             self.frame -= 1
             self.counter -= 1
 
+    def find_teleport_target(self, start_pos):
+        self.teleport_target = (gl.screen_manager , start_pos)
+
     def handle_touch(self):
         if self.touched:
             # remove duplicates
@@ -308,6 +312,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
                     pass
                 elif touch_type == 2:
                     if self.controller.down:
+                        self.find_teleport_target(obj.get_position)
                         self.new_state(self.state_teleport_out)
                     # teleport
                     pass
@@ -356,14 +361,14 @@ class PlayerEntity(ga.FSM, ga.Entity):
         bbox = self.get_bbox()
         pos = self.get_position()
         below = self.get_bottom() - gl.MAX_Y
-        cs = gl.screen_manager.get_current_screen()
+        cs = gl.screen_manager.get_current_screen_number()
         if below > 0:
             cs += 16 if cs < 240 else -240
             gl.screen_manager.change_screen(cs)
             pos.y = - (bbox.y + bbox.h - below)
             self.set_position(pos)
         center = bbox.centerx + pos.x
-        cs = gl.screen_manager.get_current_screen()
+        cs = gl.screen_manager.get_current_screen_number()
         if center < 0:
             cs -= 1 if cs > 0 else -255
             gl.screen_manager.change_screen(cs)
@@ -395,7 +400,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
         # display some status information
         di.status_line.add("%s" % str(self.position))
         di.status_line.add(" | screen: %d" %
-                           gl.screen_manager.get_current_screen())
+                           gl.screen_manager.get_current_screen_number())
         di.status_line.add(" | running state: %s " % self.state.__name__)
         if self.touched:
             di.status_line.add("| touching: %d" % len(self.touched))
