@@ -255,7 +255,9 @@ class PlayerEntity(ga.FSM, ga.Entity):
             return self.new_state(self.state_move)
 
     def state_stand(self, init=False):
-        """Handle standing state."""
+        """
+        Handle standing state.
+        """
         if init:
             self.move_vector = XY(0, 0)
             if self.to_ground > 0:
@@ -270,6 +272,9 @@ class PlayerEntity(ga.FSM, ga.Entity):
             return self.switch_state(self.state_jump)
 
     def state_teleport_out(self, init=False):
+        """
+        Teleport fade out state (teleport out)
+        """
         if init:
             self.anim = "TELE"
             self.counter = self.frames[self.anim] - 1
@@ -281,6 +286,9 @@ class PlayerEntity(ga.FSM, ga.Entity):
             self.counter -= 1
 
     def state_teleport_in(self, init=False):
+        """
+        Teleport fade in state (teleport in)
+        """
         if init:
             self.anim = "TELE"
             self.counter = self.frames[self.anim] - 1
@@ -292,7 +300,45 @@ class PlayerEntity(ga.FSM, ga.Entity):
             self.counter -= 1
 
     def find_teleport_target(self, start_pos):
-        self.teleport_target = (gl.screen_manager , start_pos)
+        """
+        Find a suitable teleport target.
+        The first one above the current one on the same X position qualifies.
+        If not present on current level, check all levels above wrapping around
+        map boundary and continuing from the bottom.
+        """
+        def get_matching_teleports(screen_number, pos_x):
+            """
+            Return a sorted list of teleports matching pos_x on the screen level
+            """
+            screen = gl.screen_manager.inspect_screen(screen_number)
+            tports = {}
+            for obj in screen.active:
+                if isinstance(obj, ga.Teleport) and obj.get_position().x == pos_x:
+                    tports[obj.get_position().y] = obj
+            return tports
+
+        self.teleport_target = None
+        csnumber = gl.screen_manager.get_current_screen_number()
+
+        # check for matching teleports on the current level
+        tp = get_matching_teleports(csnumber, start_pos.x)
+        if tp:
+            for y in range(start_pos.y, 0, -gl.SPRITE_Y):
+                if y in tp:
+                    self.teleport_target = (csnumber, XY(start_pos.x, y))
+                    break
+
+        # check remaining levels in the same column
+        while not self.teleport_target:
+            csnumber = (csnumber - 16) % 256
+            tp = get_matching_teleports(csnumber, start_pos.x)
+            if tp:
+                for y in range(gl.SCREEN_Y * gl.SPRITE_Y, 0, -gl.SPRITE_Y):
+                    if y in tp:
+                        self.teleport_target = (csnumber, XY(start_pos.x, y))
+                        break
+
+
 
     def handle_touch(self):
         if self.touched:
@@ -302,7 +348,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
             # process touch
             names = ""
             for obj in self.touched:
-                # inform touched entity about the touch
+                # inform touched entity about the touch event
                 touch_type = obj.get_touch()
                 names += touch_procs[touch_type] + " "
                 # handle touch according to its type
@@ -312,7 +358,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
                     pass
                 elif touch_type == 2:
                     if self.controller.down:
-                        self.find_teleport_target(obj.get_position)
+                        self.find_teleport_target(obj.get_position())
                         self.new_state(self.state_teleport_out)
                     # teleport
                     pass
