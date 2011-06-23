@@ -6,6 +6,7 @@ import emdisplay as di
 import emdata as da
 import emgame as ga
 import pygame
+import copy
 
 # horizontal move vector
 MOVE_STEP = 8
@@ -309,40 +310,24 @@ class PlayerEntity(ga.FSM, ga.Entity):
         If not present on current level, check all levels above wrapping around
         map boundary and continuing from the bottom.
         """
-        def get_matching_teleports(screen_number, pos_x):
-            """
-            Return a sorted list of teleports matching pos_x on the screen level
-            """
-            tports = {}
-            screen = gl.screen_manager.inspect_screen(screen_number)
+        sp = copy.copy(start_pos)
+        self.teleport_target = None
+        sn = gl.screen_manager.get_current_screen_number()
+        while not self.teleport_target:
+            tp = {}
+            screen = gl.screen_manager.inspect_screen(sn)
             if screen:
                 for obj in screen.active:
-                    if isinstance(obj, ga.Teleport) and obj.get_position().x == pos_x:
-                        tports[obj.get_position().y] = obj
-            return tports
-
-        self.teleport_target = None
-        csnumber = gl.screen_manager.get_current_screen_number()
-
-        # check for matching teleports on the current level
-        tp = get_matching_teleports(csnumber, start_pos.x)
-        if tp:
-            for y in range(start_pos.y, 0, -gl.SPRITE_Y):
-                if y in tp:
-                    self.teleport_target = (csnumber, XY(start_pos.x, y))
-                    break
-
-        # check remaining levels in the same column
-        while not self.teleport_target:
-            csnumber = (csnumber - 16) % 256
-            tp = get_matching_teleports(csnumber, start_pos.x)
+                    if isinstance(obj, ga.Teleport):
+                        if obj.get_position().x == sp.x:
+                            tp[obj.get_position().y] = obj
             if tp:
-                for y in range(gl.SCREEN_Y * gl.SPRITE_Y, 0, -gl.SPRITE_Y):
+                for y in range(sp.y, 0, -gl.SPRITE_Y):
                     if y in tp:
-                        self.teleport_target = (csnumber, XY(start_pos.x, y))
+                        self.teleport_target = (sn, XY(sp.x, y))
                         break
-
-
+            sp.y = (gl.SCREEN_Y + 1) * gl.SPRITE_Y
+            sn = (sn - 16) % 256
 
     def handle_touch(self):
         if self.touched:
