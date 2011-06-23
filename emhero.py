@@ -107,7 +107,6 @@ class PlayerEntity(ga.FSM, ga.Entity):
             # show collision box and ground testing point
             self.display_collisions()
 
-
     def display_collisions(self, color=pygame.Color(255, 128, 255)):
         """Display player's character bounding box."""
         rect = self.get_bbox()
@@ -289,6 +288,10 @@ class PlayerEntity(ga.FSM, ga.Entity):
         """
         Teleport fade in state (teleport in)
         """
+        if self.teleport_target:
+            if self.teleport_target[0] != gl.screen_manager.get_current_screen_number():
+                gl.screen_manager.change_screen(self.teleport_target[0])
+            self.set_position(self.teleport_target[1] + XY(0, -gl.SPRITE_Y * 2))
         if init:
             self.anim = "TELE"
             self.counter = self.frames[self.anim] - 1
@@ -310,11 +313,12 @@ class PlayerEntity(ga.FSM, ga.Entity):
             """
             Return a sorted list of teleports matching pos_x on the screen level
             """
-            screen = gl.screen_manager.inspect_screen(screen_number)
             tports = {}
-            for obj in screen.active:
-                if isinstance(obj, ga.Teleport) and obj.get_position().x == pos_x:
-                    tports[obj.get_position().y] = obj
+            screen = gl.screen_manager.inspect_screen(screen_number)
+            if screen:
+                for obj in screen.active:
+                    if isinstance(obj, ga.Teleport) and obj.get_position().x == pos_x:
+                        tports[obj.get_position().y] = obj
             return tports
 
         self.teleport_target = None
