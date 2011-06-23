@@ -138,7 +138,7 @@ class Entity:
 
     def vanish(self):
         """Remove itself from its original screen"""
-        gl.screen_manager.get_screen_number().active.remove(self)
+        gl.screen_manager.get_screen().active.remove(self)
 
     def update(self):
         """Standard empty update method."""
@@ -207,8 +207,7 @@ class Entity:
             w = bbox.width
             h = (gl.SCREEN_Y * gl.SPRITE_Y) - y
             me = pygame.Rect(x, y, w, h)
-            #pygame.draw.rect(Surface, color, Rect, width=0)
-            pygame.draw.rect(gl.display, pygame.Color(255, 255, 255), me, 1)
+            #pygame.draw.rect(gl.display, pygame.Color(255, 255, 255), me, 1)
             collided = []
             for obj in screen.collisions:
                 you = obj.get_bbox().copy()
