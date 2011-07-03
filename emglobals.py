@@ -51,6 +51,7 @@ checkpoint = None  # active checkpoint
 enemies = None  # data class for enemies
 weapons = None  # data class for weapons
 screen = None  # current screen definition
+info = None  # data class for info sprites
 
 # random numbers for active screen
 screen_randoms = []

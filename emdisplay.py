@@ -84,6 +84,47 @@ class InfoLines:
 
 info_lines = InfoLines(XY(180, 8), 5, 5) #default info lines buffer
 
+class LEDBar:
+    def __init__(self, left=True):
+        self.value = 0
+        sprite = gl.info.get_sprite(4) # LED indication segments
+        self.leds = []
+        self.leds.append(sprite.image.subsurface(pygame.Rect(0, 0, 16, 16)))
+        self.leds.append(sprite.image.subsurface(pygame.Rect(16, 0, 16, 16)))
+        self.leds.append(sprite.image.subsurface(pygame.Rect(32, 0, 16, 16)))
+        self.leds.append(sprite.image.subsurface(pygame.Rect(0, 16, 16, 16)))
+        self.leds.append(sprite.image.subsurface(pygame.Rect(16, 16, 16, 16)))
+        if left:
+            self.position = XY(16, 352)
+            self.mapping = [[2, 3, 3, 3, 3, 3],
+                            [0, 3, 3, 3, 3, 3],
+                            [0, 0, 3, 3, 3, 3],
+                            [0, 0, 1, 3, 3, 3],
+                            [0, 0, 1, 2, 3, 3],
+                            [0, 0, 1, 2, 2, 3],
+                            [0, 0, 1, 2, 2, 2],]
+        else:
+            self.position = XY(512, 352)
+            self.mapping = [[2, 3, 3, 3, 3, 3],
+                            [2, 1, 3, 3, 3, 3],
+                            [2, 1, 0, 3, 3, 3],
+                            [2, 1, 0, 0, 3, 3],
+                            [2, 1, 0, 0, 0, 3],
+                            [2, 1, 0, 0, 0, 0],
+                            [2, 1, 0, 0, 0, 0],]
+
+    def set_value(self, value):
+        self.value = value
+
+    def display(self):
+        self.value = int(time.clock()) % 7
+        position = XY.from_self(self.position)
+        for led in range(6):
+            gl.display.blit(self.leds[self.mapping[self.value][led]], position)
+            position.x += 16
+        gl.display.blit(self.leds[4], position)
+
+
 class StatusLine:
     """
     Handle status line display.

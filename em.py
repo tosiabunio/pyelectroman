@@ -22,11 +22,16 @@ class Gameplay:
         gl.level = da.Level()
         self.controller = ga.Controller()
         # initialize a few global objects
+        # thus loading associated sprite sets
         gl.screen_manager = ga.ScreenManager()
         gl.player = pl.PlayerEntity(self.controller)
         gl.enemies = ot.Enemies()
         gl.weapons = ot.Weapons()
+        gl.info = ot.Info()
         gl.checkpoint = ga.ActiveCheckpoint()
+        # initialize led bar indicators
+        self.leds_left = di.LEDBar(True)
+        self.leds_righ = di.LEDBar(False)
         # initialize rest
         self.loop = True
         self.screens_map = None
@@ -102,6 +107,11 @@ class Gameplay:
     def display_hero(self):
         """Display player's character"""
         gl.player.display()
+
+    def display_indicators(self):
+        """Display weapon indicators (and other icons)"""
+        self.leds_left.display()
+        self.leds_righ.display()
 
     def move_player(self, offset):
         position = gl.player.get_position() + offset
@@ -225,6 +235,7 @@ class Gameplay:
         self.display_screen(gl.screen)
         self.display_hero()
         self.display_deferred()
+        self.display_indicators()
         self.show_map((640 - 32 - 8, 8))
         self.show_info()
 
@@ -309,7 +320,6 @@ def profile_main():
 
 
 main = fast_main
-
 
 if __name__ == "__main__":
     main()

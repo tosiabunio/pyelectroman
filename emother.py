@@ -56,6 +56,14 @@ class Weapons:
         self.data = da.SpriteSet()
         self.data.load("weapons")
 
+class Info:
+    def __init__(self):
+        self.data = da.SpriteSet()
+        self.data.load("info")
+
+    def get_sprite(self, number):
+        return self.data.get_sprite(number)
+
 # -----------------------------------------------------------------------------
 # test code below
 
