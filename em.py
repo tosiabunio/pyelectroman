@@ -28,18 +28,19 @@ class Gameplay:
         gl.enemies = ot.Enemies()
         gl.weapons = ot.Weapons()
         gl.info = ot.Info()
+        di.indicators = di.Indictors()
         gl.checkpoint = ga.ActiveCheckpoint()
-        # initialize led bar indicators
-        self.leds_left = di.LEDBar(True)
-        self.leds_righ = di.LEDBar(False)
         # initialize rest
         self.loop = True
         self.screens_map = None
         self.key_handlers = {pygame.K_ESCAPE: self.on_k_escape, pygame.K_TAB: self.on_k_tab,
-                             pygame.K_LEFT: self.on_k_left, pygame.K_RIGHT: self.on_k_right, pygame.K_UP: self.on_k_up,
-                             pygame.K_DOWN: self.on_k_down, pygame.K_1: self.on_k_1, pygame.K_2: self.on_k_2,
-                             pygame.K_3: self.on_k_3, pygame.K_4: self.on_k_4, pygame.K_5: self.on_k_5,
-                             pygame.K_6: self.on_k_6, pygame.K_7: self.on_k_7, pygame.K_8: self.on_k_8}
+                             pygame.K_LEFT: self.on_k_left, pygame.K_RIGHT: self.on_k_right,
+                             pygame.K_UP: self.on_k_up, pygame.K_DOWN: self.on_k_down,
+                             pygame.K_1: self.on_k_1, pygame.K_2: self.on_k_2,
+                             pygame.K_3: self.on_k_3, pygame.K_4: self.on_k_4,
+                             pygame.K_5: self.on_k_5, pygame.K_6: self.on_k_6,
+                             pygame.K_7: self.on_k_7, pygame.K_8: self.on_k_8,
+                             pygame.K_0: self.on_k_0}
         self.deferred = None
 
     def init_map(self):
@@ -110,8 +111,7 @@ class Gameplay:
 
     def display_indicators(self):
         """Display weapon indicators (and other icons)"""
-        self.leds_left.display()
-        self.leds_righ.display()
+        di.indicators.display()
 
     def move_player(self, offset):
         position = gl.player.get_position() + offset
@@ -158,28 +158,43 @@ class Gameplay:
         return True
 
     def on_k_1(self):
-        gl.current_level = 0
-        self.load_level()
+        if pygame.key.get_mods() & pygame.KMOD_SHIFT:
+            gl.player.power = 1
+        else:
+            gl.current_level = 0
+            self.load_level()
         return True
 
     def on_k_2(self):
-        gl.current_level = 1
-        self.load_level()
+        if pygame.key.get_mods() & pygame.KMOD_SHIFT:
+            gl.player.power = 2
+        else:
+            gl.current_level = 1
+            self.load_level()
         return True
 
     def on_k_3(self):
-        gl.current_level = 2
-        self.load_level()
+        if pygame.key.get_mods() & pygame.KMOD_SHIFT:
+            gl.player.power = 3
+        else:
+            gl.current_level = 2
+            self.load_level()
         return True
 
     def on_k_4(self):
-        gl.current_level = 3
-        self.load_level()
+        if pygame.key.get_mods() & pygame.KMOD_SHIFT:
+            gl.player.power = 4
+        else:
+            gl.current_level = 3
+            self.load_level()
         return True
 
     def on_k_5(self):
-        gl.current_level = 4
-        self.load_level()
+        if pygame.key.get_mods() & pygame.KMOD_SHIFT:
+            gl.player.power = 5
+        else:
+            gl.current_level = 4
+            self.load_level()
         return True
 
     def on_k_6(self):
@@ -196,6 +211,10 @@ class Gameplay:
         gl.current_level = 7
         self.load_level()
         return True
+
+    def on_k_0(self):
+        if pygame.key.get_mods() & pygame.KMOD_SHIFT:
+            gl.player.power = 0
 
     def on_k_escape(self):
         gl.loop_main_loop = False

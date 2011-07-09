@@ -88,6 +88,10 @@ class PlayerEntity(ga.FSM, ga.Entity):
                                  (39, 45), (40, 46), (41, 47)]
         self.frames["TELE"] = len(self.sprites["TELE"])
         self.switch_state(self.state_init)
+        self.power = 0  # weapon's battery power
+        self.heat = 0  # weapons' overheating level
+        self.keys = 0  # keys needed to open the exit
+        self.fired = False  # to disable repeated shots
 
     def display(self):
         """
@@ -329,6 +333,31 @@ class PlayerEntity(ga.FSM, ga.Entity):
             sp.y = (gl.SCREEN_Y + 1) * gl.SPRITE_Y
             sn = (sn - 16) % 256
 
+    def inc_power(self):
+        """
+        Increase available power.
+        """
+        if self.power < 6:
+            self.power += 1
+            di.info_lines.add("battery collected")
+
+    def fire_weapon(self):
+        """
+        Fire the weapon!
+        """
+        di.info_lines.add("shot fired")
+
+    def power_and_cooldown(self):
+        """
+        Handle power usage and weapon cooldown.
+        """
+        if self.power == 0:
+            self.heat = 0
+        if self.power > 0 and self.heat == 0:
+            self.heat = 1
+        di.indicators.left.set_value(self.heat)
+        di.indicators.right.set_value(self.power)
+
     def handle_touch(self):
         if self.touched:
             # remove duplicates
@@ -343,6 +372,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
                 # handle touch according to its type
                 if touch_type == 1:
                     # battery
+                    self.inc_power()
                     obj.vanish()  # remove battery from the map
                     pass
                 elif touch_type == 2:
@@ -428,10 +458,24 @@ class PlayerEntity(ga.FSM, ga.Entity):
         # run FSM for the player's entity
         if not self.controller.debug:
             self.run_fsm()
+        # handle shooting
+        if self.controller.fire:
+            if self.state in [self.state_jump,
+                              self.state_fall,
+                              self.state_land,
+                              self.state_move,
+                              self.state_stand]:
+                if not self.fired:
+                    self.fire_weapon()
+                    self.fired = True
+        else:
+            self.fired = False
         # check for screen boundaries (thus screen change)
         self.check_bounds()
         # handle objects touched
         self.handle_touch()
+        # handle weapon's power usage and cooldown
+        self.power_and_cooldown()
         # display some status information
         di.status_line.add("%s" % str(self.position))
         di.status_line.add(" | screen: %d" %
