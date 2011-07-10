@@ -88,10 +88,14 @@ class PlayerEntity(ga.FSM, ga.Entity):
                                  (39, 45), (40, 46), (41, 47)]
         self.frames["TELE"] = len(self.sprites["TELE"])
         self.switch_state(self.state_init)
-        self.power = 0  # weapon's battery power
-        self.heat = 0  # weapons' overheating level
         self.keys = 0  # keys needed to open the exit
+        self.power = 0  # weapon's battery power
+        self.temp = 0  # weapons's temperature increase
         self.fired = False  # to disable repeated shots
+        self.ammo = 0  # current ammo left
+        self.magazine = [0, 20, 15, 25, 10, 15] # # of shots for each weapon level
+        self.heat = [0,  1,  2,  1,  4,  3] # temperature increase for each level
+        self.cooldown = 0  # cooldown counter
 
     def display(self):
         """
@@ -333,29 +337,45 @@ class PlayerEntity(ga.FSM, ga.Entity):
             sp.y = (gl.SCREEN_Y + 1) * gl.SPRITE_Y
             sn = (sn - 16) % 256
 
+    def select_weapon(self, power):
+        self.power = power
+        self.ammo = self.magazine[power]
+
     def inc_power(self):
         """
         Increase available power.
         """
         if self.power < 6:
-            self.power += 1
+            self.select_weapon(self.power + 1)
             di.info_lines.add("battery collected")
 
     def fire_weapon(self):
         """
         Fire the weapon!
         """
-        di.info_lines.add("shot fired")
+        if self.power:
+            t = self.heat[self.power]
+            if self.temp + t <= 6:
+                self.temp += t
+                self.cooldown = 4;
+                di.info_lines.add("shot fired")
+                self.ammo -= 1
+                if not self.ammo:
+                    self.select_weapon(self.power - 1)
 
     def power_and_cooldown(self):
         """
         Handle power usage and weapon cooldown.
         """
         if self.power == 0:
-            self.heat = 0
-        if self.power > 0 and self.heat == 0:
-            self.heat = 1
-        di.indicators.left.set_value(self.heat)
+            self.temp = 0
+        if self.power > 0 and self.temp == 0:
+            self.temp = 1
+        if self.temp > 1:
+            if self.cooldown:
+                self.cooldown -= 1
+
+        di.indicators.left.set_value(self.temp)
         di.indicators.right.set_value(self.power)
 
     def handle_touch(self):
@@ -482,7 +502,8 @@ class PlayerEntity(ga.FSM, ga.Entity):
                            gl.screen_manager.get_current_screen_number())
         di.status_line.add(" | running state: %s " % self.state.__name__)
         if self.touched:
-            di.status_line.add("| touching: %d" % len(self.touched))
+            di.status_line.add(" | touching: %d" % len(self.touched))
+        di.status_line.add(" | ammo: %d" % self.ammo)
 
 
 # -----------------------------------------------------------------------------

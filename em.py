@@ -159,7 +159,7 @@ class Gameplay:
 
     def on_k_1(self):
         if pygame.key.get_mods() & pygame.KMOD_SHIFT:
-            gl.player.power = 1
+            gl.player.select_weapon(1)
         else:
             gl.current_level = 0
             self.load_level()
@@ -167,7 +167,7 @@ class Gameplay:
 
     def on_k_2(self):
         if pygame.key.get_mods() & pygame.KMOD_SHIFT:
-            gl.player.power = 2
+            gl.player.select_weapon(2)
         else:
             gl.current_level = 1
             self.load_level()
@@ -175,7 +175,7 @@ class Gameplay:
 
     def on_k_3(self):
         if pygame.key.get_mods() & pygame.KMOD_SHIFT:
-            gl.player.power = 3
+            gl.player.select_weapon(3)
         else:
             gl.current_level = 2
             self.load_level()
@@ -183,7 +183,7 @@ class Gameplay:
 
     def on_k_4(self):
         if pygame.key.get_mods() & pygame.KMOD_SHIFT:
-            gl.player.power = 4
+            gl.player.select_weapon(4)
         else:
             gl.current_level = 3
             self.load_level()
@@ -191,7 +191,7 @@ class Gameplay:
 
     def on_k_5(self):
         if pygame.key.get_mods() & pygame.KMOD_SHIFT:
-            gl.player.power = 5
+            gl.player.select_weapon(5)
         else:
             gl.current_level = 4
             self.load_level()
@@ -214,7 +214,7 @@ class Gameplay:
 
     def on_k_0(self):
         if pygame.key.get_mods() & pygame.KMOD_SHIFT:
-            gl.player.power = 0
+            gl.player.select_weapon(0)
 
     def on_k_escape(self):
         gl.loop_main_loop = False
@@ -284,6 +284,7 @@ class Gameplay:
             gl.render_time = time.clock() - render_start
             # rendering ended
             self.show() # show the screen
+            gl.counter += 1
             clock.tick(20)  # keep constant frame rate (20fps)
 
     def stop(self):
