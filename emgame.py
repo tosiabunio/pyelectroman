@@ -138,7 +138,11 @@ class Entity:
 
     def vanish(self):
         """Remove itself from its original screen"""
+        # remove from the current screen first
         gl.screen_manager.get_screen().active.remove(self)
+        # remove from the level definition
+        gl.screen_manager.delete_object(gl.screen_manager.get_current_screen_number(),
+                                        self.position)
 
     def update(self):
         """Standard empty update method."""
@@ -178,19 +182,19 @@ class Entity:
         if collide["T"]:
             sp = position + (x, y)
             ep = position + (x + w - 1, y)
-            pygame.draw.line(gl.display, color, sp, ep, 1)
+            pygame.draw.line(gl.display, color, sp, ep)
         if collide["L"]:
             sp = position + (x, y)
             ep = position + (x, y + h - 1)
-            pygame.draw.line(gl.display, color, sp, ep, 1)
+            pygame.draw.line(gl.display, color, sp, ep)
         if collide["R"]:
             sp = position + (x + w - 1, y)
             ep = position + (x + w - 1, y + h - 1)
-            pygame.draw.line(gl.display, color, sp, ep, 1)
+            pygame.draw.line(gl.display, color, sp, ep)
         if collide["B"]:
             sp = position + (x, y + h - 1)
             ep = position + (x + w - 1, y + h - 1)
-            pygame.draw.line(gl.display, color, sp, ep, 1)
+            pygame.draw.line(gl.display, color, sp, ep)
 
     def check_ground(self, screen):
         """
@@ -373,6 +377,11 @@ class ScreenManager:
             else:
                 self.screen = None
 
+    def delete_object(self, screen, position):
+        cs = self.screens[screen]
+        for obj in cs.active:
+            if obj.position == position:
+                cs.active.remove(obj)
 
 class ActiveCheckpoint:
     """

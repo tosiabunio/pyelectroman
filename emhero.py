@@ -357,7 +357,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
             t = self.heat[self.power]
             if self.temp + t <= 6:
                 self.temp += t
-                self.cooldown = 4;
+                self.cooldown = 4
                 di.info_lines.add("shot fired")
                 self.ammo -= 1
                 if not self.ammo:
@@ -394,7 +394,6 @@ class PlayerEntity(ga.FSM, ga.Entity):
                     # battery
                     self.inc_power()
                     obj.vanish()  # remove battery from the map
-                    pass
                 elif touch_type == 2:
                     if self.controller.down:
                         self.find_teleport_target(obj.get_position())
