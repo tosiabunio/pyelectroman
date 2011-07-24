@@ -28,18 +28,25 @@ class Gameplay:
         gl.enemies = ot.Enemies()
         gl.weapons = ot.Weapons()
         gl.info = ot.Info()
-        di.indicators = di.Indictors()
+        di.indicators = di.Indicators()
         gl.checkpoint = ga.ActiveCheckpoint()
         # initialize rest
         self.loop = True
         self.screens_map = None
-        self.key_handlers = {pygame.K_ESCAPE: self.on_k_escape, pygame.K_TAB: self.on_k_tab,
-                             pygame.K_LEFT: self.on_k_left, pygame.K_RIGHT: self.on_k_right,
-                             pygame.K_UP: self.on_k_up, pygame.K_DOWN: self.on_k_down,
-                             pygame.K_1: self.on_k_1, pygame.K_2: self.on_k_2,
-                             pygame.K_3: self.on_k_3, pygame.K_4: self.on_k_4,
-                             pygame.K_5: self.on_k_5, pygame.K_6: self.on_k_6,
-                             pygame.K_7: self.on_k_7, pygame.K_8: self.on_k_8,
+        self.key_handlers = {pygame.K_ESCAPE: self.on_k_escape,
+                             pygame.K_TAB: self.on_k_tab,
+                             pygame.K_LEFT: self.on_k_left,
+                             pygame.K_RIGHT: self.on_k_right,
+                             pygame.K_UP: self.on_k_up,
+                             pygame.K_DOWN: self.on_k_down,
+                             pygame.K_1: self.on_k_1,
+                             pygame.K_2: self.on_k_2,
+                             pygame.K_3: self.on_k_3,
+                             pygame.K_4: self.on_k_4,
+                             pygame.K_5: self.on_k_5,
+                             pygame.K_6: self.on_k_6,
+                             pygame.K_7: self.on_k_7,
+                             pygame.K_8: self.on_k_8,
                              pygame.K_0: self.on_k_0}
         self.deferred = None
 
@@ -155,7 +162,6 @@ class Gameplay:
 
     def on_k_tab(self):
         gl.show_collisions = False if gl.show_collisions else True
-        return True
 
     def on_k_1(self):
         if pygame.key.get_mods() & pygame.KMOD_SHIFT:
@@ -163,7 +169,6 @@ class Gameplay:
         else:
             gl.current_level = 0
             self.load_level()
-        return True
 
     def on_k_2(self):
         if pygame.key.get_mods() & pygame.KMOD_SHIFT:
@@ -171,7 +176,6 @@ class Gameplay:
         else:
             gl.current_level = 1
             self.load_level()
-        return True
 
     def on_k_3(self):
         if pygame.key.get_mods() & pygame.KMOD_SHIFT:
@@ -179,7 +183,6 @@ class Gameplay:
         else:
             gl.current_level = 2
             self.load_level()
-        return True
 
     def on_k_4(self):
         if pygame.key.get_mods() & pygame.KMOD_SHIFT:
@@ -187,7 +190,6 @@ class Gameplay:
         else:
             gl.current_level = 3
             self.load_level()
-        return True
 
     def on_k_5(self):
         if pygame.key.get_mods() & pygame.KMOD_SHIFT:
@@ -195,22 +197,18 @@ class Gameplay:
         else:
             gl.current_level = 4
             self.load_level()
-        return True
 
     def on_k_6(self):
         gl.current_level = 5
         self.load_level()
-        return True
 
     def on_k_7(self):
         gl.current_level = 6
         self.load_level()
-        return True
 
     def on_k_8(self):
         gl.current_level = 7
         self.load_level()
-        return True
 
     def on_k_0(self):
         if pygame.key.get_mods() & pygame.KMOD_SHIFT:
@@ -225,6 +223,7 @@ class Gameplay:
         self.screens_map = self.init_map()
         start_screen = gl.checkpoint.get_screen()
         start_position = gl.checkpoint.get_position()
+        gl.disks = 0 # no disks collected after level load
         if start_position:
             start_position += XY(gl.SPRITE_X / 2, gl.SPRITE_Y)
             gl.screen_manager.change_screen(start_screen)

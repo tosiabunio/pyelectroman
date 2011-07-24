@@ -7,6 +7,7 @@ import logging
 import time
 
 
+#noinspection PyArgumentEqualDefault
 def init_display():
     pygame.init()
     gl.window = pygame.display.set_mode((640, 480), 0, 32)
@@ -84,6 +85,23 @@ class InfoLines:
 
 info_lines = InfoLines(XY(180, 8), 5, 5) #default info lines buffer
 
+class DiskInfo:
+    def __init__(self, position):
+        sprite = gl.info.get_sprite(3) # disk segments
+        self.disk = sprite.image.subsurface(pygame.Rect(0, 0, 18, 16))
+        self.position = position
+        self.disks = 0
+
+    def set_value(self, disks):
+        self.disks = disks % 4
+
+    def display(self):
+        if self.disks:
+            position = XY.from_self(self.position)
+            for d in range(self.disks):
+                gl.display.blit(self.disk, position)
+                position.x += 22
+
 class LEDBar:
     """
     LED bar display
@@ -110,8 +128,7 @@ class LEDBar:
             position.x += 16
         gl.display.blit(self.leds[4], position)
 
-
-class Indictors:
+class Indicators:
     def __init__(self):
         self.left = LEDBar(XY(16, 352),
                            [[2, 3, 3, 3, 3, 3],
@@ -130,10 +147,12 @@ class Indictors:
                             [2, 1, 0, 0, 0, 0],
                             [2, 1, 0, 0, 0, 0]]
         )
+        self.disks = DiskInfo(XY(144, 352))
 
     def display(self):
         self.left.display()
         self.right.display()
+        self.disks.display()
 
 class StatusLine:
     """
@@ -149,6 +168,7 @@ class StatusLine:
         self.message += text
 
     def show(self):
+        global message
         message(self.position, self.message, self.font)
         self.message = ""
 

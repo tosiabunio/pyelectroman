@@ -53,6 +53,7 @@ weapons = None  # data class for weapons
 screen = None  # current screen definition
 info = None  # data class for info sprites
 counter = 0 # +1 every loop
+disks = 0 # number of disks collected
 
 # random numbers for active screen
 screen_randoms = []

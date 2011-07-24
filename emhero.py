@@ -379,7 +379,12 @@ class PlayerEntity(ga.FSM, ga.Entity):
                 self.temp -= 1
                 self.cooldown = 4
 
-        # display indicators
+    def show_hud(self):
+        # display disks if collected
+        if not gl.counter % 20:
+            gl.disks += 1
+        di.indicators.disks.set_value(gl.disks)
+        # display LED indicators
         di.indicators.left.set_value(self.temp)
         if self.ammo < 3 and self.power:
             # handle low ammo warning blinking
@@ -507,6 +512,8 @@ class PlayerEntity(ga.FSM, ga.Entity):
         self.handle_touch()
         # handle weapon's power usage and cooldown
         self.power_and_cooldown()
+        # display HUD
+        self.show_hud()
         # display some status information
         di.status_line.add("%s" % str(self.position))
         di.status_line.add(" | screen: %d" %
