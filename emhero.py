@@ -21,7 +21,7 @@ touch_procs = {0 : "none", 1 : "battery", 2 : "teleport", 3 :"checkpoint",
                7 : "special good", 8 : "special bad"}
 
 
-#noinspection PySimplifyBooleanCheck
+#noinspection PySimplifyBooleanCheck,PyArgumentEqualDefault
 class PlayerEntity(ga.FSM, ga.Entity):
     """
     Player's entity class, extends ga.Entity.
@@ -366,6 +366,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
     def power_and_cooldown(self):
         """
         Handle power usage and weapon cooldown.
+        Display indicators.
         """
         if self.power == 0:
             self.temp = 0
@@ -374,9 +375,20 @@ class PlayerEntity(ga.FSM, ga.Entity):
         if self.temp > 1:
             if self.cooldown:
                 self.cooldown -= 1
+            else:
+                self.temp -= 1
+                self.cooldown = 4
 
+        # display indicators
         di.indicators.left.set_value(self.temp)
-        di.indicators.right.set_value(self.power)
+        if self.ammo < 3 and self.power:
+            # handle low ammo warning blinking
+            if gl.counter & 0x02:
+                di.indicators.right.set_value(self.power - 1)
+            else:
+                di.indicators.right.set_value(self.power)
+        else:
+            di.indicators.right.set_value(self.power)
 
     def handle_touch(self):
         if self.touched:
