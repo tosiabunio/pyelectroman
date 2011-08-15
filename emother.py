@@ -5,6 +5,7 @@ class EnemyData:
         self.anims = {}
         self.frames = {}
 
+
 class Enemies:
     def __init__(self):
         self.data = da.SpriteSet()
@@ -51,10 +52,29 @@ class Enemies:
         return (self.enemy[enemy_num].anims,
                 self.enemy[enemy_num].frames)
 
+
+class WeaponData:
+    def __init__(self, anims):
+        self.anims = anims
+        self.frames = len(anims)
+
+
 class Weapons:
     def __init__(self):
         self.data = da.SpriteSet()
         self.data.load("weapons")
+        self.weapon = {"EXPLOSION": WeaponData(self.data.get_anim((0, 7))),
+                       "1_L": WeaponData(self.data.get_anim((8, 15))),
+                       "1_R": WeaponData(self.data.get_anim((8, 15))),
+                       "2_L": WeaponData(self.data.get_anim((16, 19))),
+                       "2_R": WeaponData(self.data.get_anim((20, 23))),
+                       "3_L": WeaponData(self.data.get_anim((24, 26))),
+                       "3_R": WeaponData(self.data.get_anim((28, 30))),
+                       "4_L": WeaponData(self.data.get_anim((32, 33))),
+                       "4_R": WeaponData(self.data.get_anim((34, 35))),
+                       "5_L": WeaponData(self.data.get_anim((36, 37))),
+                       "5_R": WeaponData(self.data.get_anim((33, 39)))}
+
 
 class Info:
     def __init__(self):

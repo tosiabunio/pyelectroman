@@ -141,7 +141,7 @@ class Entity:
         # remove from the current screen first
         gl.screen_manager.get_screen().active.remove(self)
         # remove from the level definition
-        gl.screen_manager.delete_object(gl.screen_manager.get_current_screen_number(),
+        gl.screen_manager.delete_object(gl.screen_manager.get_screen_number(),
                                         self.position)
 
     def update(self):
@@ -332,8 +332,9 @@ class ScreenManager:
         self.current_screen = 0  # current screen
         self.screens = None  # all screens
         self.screen = None  # current screen definition
+        self.new_objects = [] # new objects created for current frame
 
-    def add_all_screens(self, screens):
+    def add_screens(self, screens):
         self.screens = screens
 
     def get_screen(self):
@@ -342,13 +343,13 @@ class ScreenManager:
         """
         return self.screen
 
-    def get_all_screens(self):
+    def get_screens(self):
         """
         Return all screen definitions.
         """
         return self.screens
 
-    def get_current_screen_number(self):
+    def get_screen_number(self):
         return self.current_screen
 
     def inspect_screen(self, screen_number):
@@ -382,6 +383,21 @@ class ScreenManager:
         for obj in cs.active:
             if obj.position == position:
                 cs.active.remove(obj)
+
+    def add_active(self, object):
+        """
+        Add new objects to waiting queue.
+        They will be displayed but not updated in this frame.
+        """
+        self.new_objects.append(object)
+
+    def update_active(self):
+        """
+        Update list of active objects with objects from new objects queue.
+        """
+        if self.new_objects:
+            self.screen.active.extend(self.new_objects)
+            self.new_objects = []
 
 class ActiveCheckpoint:
     """

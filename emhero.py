@@ -7,6 +7,7 @@ import emdata as da
 import emgame as ga
 import pygame
 import copy
+import logging
 
 # horizontal move vector
 MOVE_STEP = 8
@@ -298,7 +299,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
         Teleport fade in state (teleport in)
         """
         if self.teleport_target:
-            if self.teleport_target[0] != gl.screen_manager.get_current_screen_number():
+            if self.teleport_target[0] != gl.screen_manager.get_screen_number():
                 gl.screen_manager.change_screen(self.teleport_target[0])
             self.set_position(self.teleport_target[1] + XY(0, -gl.SPRITE_Y * 2))
         if init:
@@ -320,7 +321,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
         """
         sp = copy.copy(start_pos)
         self.teleport_target = None
-        sn = gl.screen_manager.get_current_screen_number()
+        sn = gl.screen_manager.get_screen_number()
         while not self.teleport_target:
             tp = {}
             screen = gl.screen_manager.inspect_screen(sn)
@@ -348,20 +349,6 @@ class PlayerEntity(ga.FSM, ga.Entity):
         if self.power < 6:
             self.select_weapon(self.power + 1)
             di.info_lines.add("battery collected")
-
-    def fire_weapon(self):
-        """
-        Fire the weapon!
-        """
-        if self.power:
-            t = self.heat[self.power]
-            if self.temp + t <= 6:
-                self.temp += t
-                self.cooldown = 4
-                di.info_lines.add("shot fired")
-                self.ammo -= 1
-                if not self.ammo:
-                    self.select_weapon(self.power - 1)
 
     def power_and_cooldown(self):
         """
@@ -462,14 +449,14 @@ class PlayerEntity(ga.FSM, ga.Entity):
         bbox = self.get_bbox()
         pos = self.get_position()
         below = self.get_bottom() - gl.MAX_Y
-        cs = gl.screen_manager.get_current_screen_number()
+        cs = gl.screen_manager.get_screen_number()
         if below > 0:
             cs += 16 if cs < 240 else -240
             gl.screen_manager.change_screen(cs)
             pos.y = - (bbox.y + bbox.h - below)
             self.set_position(pos)
         center = bbox.centerx + pos.x
-        cs = gl.screen_manager.get_current_screen_number()
+        cs = gl.screen_manager.get_screen_number()
         if center < 0:
             cs -= 1 if cs > 0 else -255
             gl.screen_manager.change_screen(cs)
@@ -517,12 +504,87 @@ class PlayerEntity(ga.FSM, ga.Entity):
         # display some status information
         di.status_line.add("%s" % str(self.position))
         di.status_line.add(" | screen: %d" %
-                           gl.screen_manager.get_current_screen_number())
+                           gl.screen_manager.get_screen_number())
         di.status_line.add(" | running state: %s " % self.state.__name__)
         if self.touched:
             di.status_line.add(" | touching: %d" % len(self.touched))
         di.status_line.add(" | ammo: %d" % self.ammo)
 
+    projectile_offset = {
+        "1_L" : XY(-48, 0),
+        "1_R" : XY(48, 0),
+        "2_L" : XY(0, 0),
+        "2_R" : XY(0, 0),
+        "3_L" : XY(0, 0),
+        "3_R" : XY(0, 0),
+        "4_L" : XY(0, 0),
+        "4_R" : XY(0, 0),
+        "5_L" : XY(0, 0),
+        "5_R" : XY(0, 0),
+    }
+
+    def fire_weapon(self):
+        """
+        Fire the weapon!
+        """
+        def add_projectile(type, pos=None):
+            if not pos:
+                ppos = self.get_position().copy() + self.projectile_offset[type]
+            else:
+                ppos = pos
+            projectile = Projectile(type)
+            projectile.set_position(ppos)
+            gl.screen_manager.add_active(projectile)
+            return projectile
+
+        if self.power:
+            t = self.heat[self.power]
+            if self.temp + t <= 6:
+                self.temp += t
+                self.cooldown = 4
+                self.ammo -= 1
+                di.info_lines.add("shot fired")
+                if self.power == 1:
+                    add_projectile(["1_L", "1_R"][self.orientation])
+                elif self.position == 2:
+                    add_projectile(["2_L", "2_R"][self.orientation])
+                elif self.position == 3:
+                    add_projectile(["3_L", "3_R"][self.orientation])
+                elif self.position == 4:
+                    add_projectile(["4_L", "4_R"][self.orientation])
+                elif self.position == 5:
+                    type = ["5_L", "5_R"][self.orientation]
+                    first = add_projectile(type)
+                    ppos = first.get_position() + XY(0, gl.SPRITE_Y)
+                    second = add_projectile(type, ppos)
+                    second.frame = 1
+                if not self.ammo:
+                    self.select_weapon(self.power - 1)
+
+
+#noinspection PyArgumentEqualDefault
+class Projectile(ga.Entity):
+    def __init__(self, type):
+        ga.Entity.__init__(self, [da.EmptySprite()], XY(0, 0))
+        self.type = type
+        self.anim = gl.weapons.weapon[type].anims
+        self.frames = gl.weapons.weapon[type].frames
+        self.age = 10
+
+    def update(self):
+        if self.age:
+            logging.debug("Projectile living...")
+            self.age -= 1
+        else:
+            logging.debug("Projectile dead.")
+            self.vanish()
+
+    def display(self):
+        if type not in ["5_L", "5_R"]:
+            logging.debug("Projectile displaying...")
+            ga.Entity.display(self)
+        else:
+            pass
 
 # -----------------------------------------------------------------------------
 # test code below

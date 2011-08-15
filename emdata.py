@@ -34,7 +34,7 @@ class SpriteData:
         image_file_path = os.path.join(set_file_path,
                                        set_name + "_%02d.png" % number)
         self.image = pygame.image.load(image_file_path).convert_alpha()
-        self.image = pygame.transform.scale2x(self.image)
+        self.image = pygame.transform.scale(self.image, (gl.SPRITE_X, gl.SPRITE_Y))
         # set up sprite information from status bytes
         self.flags = status_bytes[0]
         self.action = status_bytes[1] & 0x1F
@@ -148,6 +148,7 @@ class LevelData:
         self.data = json.load(jfile, encoding='ascii')
 
 
+#noinspection PyArgumentEqualDefault
 class Level(LevelData):
     def __init__(self):
         LevelData.__init__(self)
