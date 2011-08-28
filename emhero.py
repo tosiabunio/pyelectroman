@@ -513,14 +513,14 @@ class PlayerEntity(ga.FSM, ga.Entity):
     projectile_offset = {
         "1_L" : XY(-48, 0),
         "1_R" : XY(48, 0),
-        "2_L" : XY(0, 0),
-        "2_R" : XY(0, 0),
-        "3_L" : XY(0, 0),
-        "3_R" : XY(0, 0),
-        "4_L" : XY(0, 0),
-        "4_R" : XY(0, 0),
-        "5_L" : XY(0, 0),
-        "5_R" : XY(0, 0),
+        "2_L" : XY(-48, 0),
+        "2_R" : XY(48, 0),
+        "3_L" : XY(-48, 0),
+        "3_R" : XY(48, 0),
+        "4_L" : XY(-48, 0),
+        "4_R" : XY(48, 0),
+        "5_L" : XY(-48, 0),
+        "5_R" : XY(48, 0),
     }
 
     def fire_weapon(self):
@@ -544,20 +544,9 @@ class PlayerEntity(ga.FSM, ga.Entity):
                 self.cooldown = 4
                 self.ammo -= 1
                 di.info_lines.add("shot fired")
-                if self.power == 1:
-                    add_projectile(["1_L", "1_R"][self.orientation])
-                elif self.position == 2:
-                    add_projectile(["2_L", "2_R"][self.orientation])
-                elif self.position == 3:
-                    add_projectile(["3_L", "3_R"][self.orientation])
-                elif self.position == 4:
-                    add_projectile(["4_L", "4_R"][self.orientation])
-                elif self.position == 5:
-                    type = ["5_L", "5_R"][self.orientation]
-                    first = add_projectile(type)
-                    ppos = first.get_position() + XY(0, gl.SPRITE_Y)
-                    second = add_projectile(type, ppos)
-                    second.frame = 1
+                if 1 <= self.power <= 5:
+                    types = ["%d_L" % self.power, "%d_R" % self.power]
+                    add_projectile(types[self.orientation])
                 if not self.ammo:
                     self.select_weapon(self.power - 1)
 
@@ -572,15 +561,19 @@ class Projectile(ga.Entity):
         self.step = (-1 if type[2] == "L" else 1) * gl.SPRITE_X / 4
 
     def update(self):
+        self.frame = (self.frame + 1) % len(self.sprites)
         self.position.x += self.step
         if self.position.x > gl.SCREEN_X * gl.SPRITE_X or self.position.x < - gl.SPRITE_X:
             self.vanish()
 
     def display(self):
-        if type not in ["5_L", "5_R"]:
+        if self.type[0] != "5":
             ga.Entity.display(self)
         else:
-            pass
+            sprite = self.sprites[0]
+            gl.display.blit(sprite.image, self.get_position())
+            sprite = self.sprites[1]
+            gl.display.blit(sprite.image, self.get_position() + XY(0, gl.SPRITE_Y))
 
 # -----------------------------------------------------------------------------
 # test code below
