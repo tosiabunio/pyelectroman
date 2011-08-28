@@ -567,21 +567,17 @@ class Projectile(ga.Entity):
     def __init__(self, type):
         ga.Entity.__init__(self, [da.EmptySprite()], XY(0, 0))
         self.type = type
-        self.anim = gl.weapons.weapon[type].anims
+        self.sprites = gl.weapons.weapon[type].anims
         self.frames = gl.weapons.weapon[type].frames
-        self.age = 10
+        self.step = (-1 if type[2] == "L" else 1) * gl.SPRITE_X / 4
 
     def update(self):
-        if self.age:
-            logging.debug("Projectile living...")
-            self.age -= 1
-        else:
-            logging.debug("Projectile dead.")
+        self.position.x += self.step
+        if self.position.x > gl.SCREEN_X * gl.SPRITE_X or self.position.x < - gl.SPRITE_X:
             self.vanish()
 
     def display(self):
         if type not in ["5_L", "5_R"]:
-            logging.debug("Projectile displaying...")
             ga.Entity.display(self)
         else:
             pass
