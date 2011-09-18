@@ -510,17 +510,17 @@ class PlayerEntity(ga.FSM, ga.Entity):
             di.status_line.add(" | touching: %d" % len(self.touched))
         di.status_line.add(" | ammo: %d" % self.ammo)
 
-    projectile_offset = {
-        "1_L" : XY(-48, 0),
-        "1_R" : XY(48, 0),
-        "2_L" : XY(-48, 0),
-        "2_R" : XY(48, 0),
-        "3_L" : XY(-48, 0),
-        "3_R" : XY(48, 0),
-        "4_L" : XY(-48, 0),
-        "4_R" : XY(48, 0),
-        "5_L" : XY(-48, 0),
-        "5_R" : XY(48, 0),
+    projectiles = {
+        "1_L" : { "offset" : XY(-38, 32), "step" : -28 },
+        "1_R" : { "offset" : XY(38, 32), "step" : 28 },
+        "2_L" : { "offset" : XY(-46, 32), "step" : -32 },
+        "2_R" : { "offset" : XY(46, 32), "step" : 32 },
+        "3_L" : { "offset" : XY(-46, 32), "step" : -28 },
+        "3_R" : { "offset" : XY(46, 32), "step" : 28 },
+        "4_L" : { "offset" : XY(-46, 32), "step" : -24 },
+        "4_R" : { "offset" : XY(46, 32), "step" : 24 },
+        "5_L" : { "offset" : XY(-36, 8), "step" : -32 },
+        "5_R" : { "offset" : XY(36, 8), "step" : 32 },
     }
 
     def fire_weapon(self):
@@ -529,11 +529,12 @@ class PlayerEntity(ga.FSM, ga.Entity):
         """
         def add_projectile(type, pos=None):
             if not pos:
-                ppos = self.get_position().copy() + self.projectile_offset[type]
+                ppos = self.get_position().copy() + self.projectiles[type]["offset"]
             else:
                 ppos = pos
             projectile = Projectile(type)
             projectile.set_position(ppos)
+            projectile.step = self.projectiles[type]["step"]
             gl.screen_manager.add_active(projectile)
             return projectile
 
@@ -558,7 +559,7 @@ class Projectile(ga.Entity):
         self.type = type
         self.sprites = gl.weapons.weapon[type].anims
         self.frames = gl.weapons.weapon[type].frames
-        self.step = (-1 if type[2] == "L" else 1) * gl.SPRITE_X / 4
+        self.step = 0
 
     def update(self):
         self.frame = (self.frame + 1) % len(self.sprites)
