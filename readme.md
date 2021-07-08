@@ -1,8 +1,6 @@
 # PyElectroMan
 ### Python port of 1992 PC game Electro Man made in PyGame
 
-![PyElectroMan screenshot](https://adrianiskander.com/img/pyelectroman.png)
-
 ### About
 https://en.wikipedia.org/wiki/Electro_Man
 
