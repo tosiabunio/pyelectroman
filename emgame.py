@@ -2,9 +2,10 @@
 
 import emglobals as gl
 import emdata as da
-from emglobals import XY
 import pygame
 import copy
+
+from emglobals import XY
 
 
 class Controller:
@@ -281,12 +282,12 @@ class Entity:
         if abs(ox) < abs(oy):
             swap_xy = True
             oy, ox = ox, oy
-        sy = (float(oy) / abs(ox)) * 2
+        sy = (float(oy) // abs(ox)) * 2
         fy = 0.01
         # pylint: disable-msg=W0612
         # mutilsampling check with step 2 pixels
-        for step in range(abs(ox) / 2):
-            nx += 2 * cmp(ox, 0)
+        for step in range(abs(ox) // 2):
+            nx += 2 * ((ox > 0) - (ox < 0))
             fy += sy
             ny = int(fy) & ~0x1
             if swap_xy:
@@ -304,20 +305,20 @@ class Entity:
         """Set initial delay depending on mode or object's position."""
         pos = self.get_position()
         if mode == 0:
-            self.delay = ((pos.x / gl.SPRITE_X)
-                          + (pos.y / gl.SPRITE_Y)) % (param + 1)
+            self.delay = ((pos.x // gl.SPRITE_X)
+                          + (pos.y // gl.SPRITE_Y)) % (param + 1)
         elif mode == 1:
-            self.delay = (pos.x / gl.SPRITE_X) % (param + 1)
+            self.delay = (pos.x // gl.SPRITE_X) % (param + 1)
         elif mode == 2:
-            self.delay = (pos.y / gl.SPRITE_Y) % (param + 1)
+            self.delay = (pos.y // gl.SPRITE_Y) % (param + 1)
         elif mode == 3:
             self.delay = 0
         elif mode == 4:
             self.delay = gl.random(param + 1)
         elif mode == 5:
-            self.delay = gl.screen_randoms[pos.x / gl.SPRITE_X] % (param + 1)
+            self.delay = gl.screen_randoms[pos.x // gl.SPRITE_X] % (param + 1)
         elif mode == 6:
-            self.delay = gl.screen_randoms[pos.y / gl.SPRITE_Y] % (param + 1)
+            self.delay = gl.screen_randoms[pos.y // gl.SPRITE_Y] % (param + 1)
         elif mode == 7:
             self.frame = gl.random(len(self.sprites))
             self.delay = 0

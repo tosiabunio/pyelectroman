@@ -61,15 +61,15 @@ class Gameplay:
         screens = gl.screen_manager.get_screens()
         for scr in range(256):
             if screens[scr]:
-                pixels[(scr % 16) * 2 + 0][(scr / 16) * 2 + 0] = FULL
-                pixels[(scr % 16) * 2 + 1][(scr / 16) * 2 + 0] = FULL
-                pixels[(scr % 16) * 2 + 0][(scr / 16) * 2 + 1] = FULL
-                pixels[(scr % 16) * 2 + 1][(scr / 16) * 2 + 1] = FULL
+                pixels[(scr % 16) * 2 + 0][(scr // 16) * 2 + 0] = FULL
+                pixels[(scr % 16) * 2 + 1][(scr // 16) * 2 + 0] = FULL
+                pixels[(scr % 16) * 2 + 0][(scr // 16) * 2 + 1] = FULL
+                pixels[(scr % 16) * 2 + 1][(scr // 16) * 2 + 1] = FULL
             else:
-                pixels[(scr % 16) * 2 + 0][(scr / 16) * 2 + 0] = EMPTY
-                pixels[(scr % 16) * 2 + 1][(scr / 16) * 2 + 0] = EMPTY
-                pixels[(scr % 16) * 2 + 0][(scr / 16) * 2 + 1] = EMPTY
-                pixels[(scr % 16) * 2 + 1][(scr / 16) * 2 + 1] = EMPTY
+                pixels[(scr % 16) * 2 + 0][(scr // 16) * 2 + 0] = EMPTY
+                pixels[(scr % 16) * 2 + 1][(scr // 16) * 2 + 0] = EMPTY
+                pixels[(scr % 16) * 2 + 0][(scr // 16) * 2 + 1] = EMPTY
+                pixels[(scr % 16) * 2 + 1][(scr // 16) * 2 + 1] = EMPTY
         del pixels
         return screens_map
 
@@ -82,10 +82,10 @@ class Gameplay:
         screens_map_copy.blit(self.screens_map, (0, 0))
         pixels = pygame.PixelArray(screens_map_copy)
         # pylint: enable-msg=E1121
-        pixels[(scr % 16) * 2 + 0][(scr / 16) * 2 + 0] = CURRENT
-        pixels[(scr % 16) * 2 + 1][(scr / 16) * 2 + 0] = CURRENT
-        pixels[(scr % 16) * 2 + 0][(scr / 16) * 2 + 1] = CURRENT
-        pixels[(scr % 16) * 2 + 1][(scr / 16) * 2 + 1] = CURRENT
+        pixels[(scr % 16) * 2 + 0][(scr // 16) * 2 + 0] = CURRENT
+        pixels[(scr % 16) * 2 + 1][(scr // 16) * 2 + 0] = CURRENT
+        pixels[(scr % 16) * 2 + 0][(scr // 16) * 2 + 1] = CURRENT
+        pixels[(scr % 16) * 2 + 1][(scr // 16) * 2 + 1] = CURRENT
         del pixels
         gl.window.blit(screens_map_copy, pos)
 
@@ -226,7 +226,7 @@ class Gameplay:
         start_position = gl.checkpoint.get_position()
         gl.disks = 0 # no disks collected after level load
         if start_position:
-            start_position += XY(gl.SPRITE_X / 2, gl.SPRITE_Y)
+            start_position += XY(gl.SPRITE_X // 2, gl.SPRITE_Y)
             gl.screen_manager.change_screen(start_screen)
             gl.player.stand(start_position)
 
@@ -272,16 +272,16 @@ class Gameplay:
         clock = pygame.time.Clock()
         while gl.loop_main_loop:
             # logic processing starts here
-            logic_start = time.clock()
+            logic_start = time.time()
             self.loop_begin()
             self.loop_events()
             self.loop_run()
-            gl.logic_time = time.clock() - logic_start
+            gl.logic_time = time.time() - logic_start
             # logic processing ended
             # rendering starts here
-            render_start = time.clock()
+            render_start = time.time()
             self.loop_end()
-            gl.render_time = time.clock() - render_start
+            gl.render_time = time.time() - render_start
             # rendering ended
             self.show() # show the screen
             gl.counter += 1
@@ -308,7 +308,6 @@ class Game:
     def init(self):
         di.init_display()
         di.info_lines.add("pyelectroman started")
-        time.clock()
 
     def quit(self):
         di.quit_display()

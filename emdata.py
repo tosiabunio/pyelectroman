@@ -100,7 +100,7 @@ class SpriteSet:
         set_file_path = os.path.join(set_file_path, set_name)
         set_file_path += ".ebs"
         jfile = open(set_file_path, "rt")
-        self.set = json.load(jfile, encoding='ascii')
+        self.set = json.load(jfile)
         for spr in range(64):
             if self.is_used(spr):
                 sprite = SpriteData()
@@ -145,7 +145,7 @@ class LevelData:
         level_file_path = os.path.join(gl.data_folder, filename)
         level_file_path += ".ebl"
         jfile = open(level_file_path, "rt")
-        self.data = json.load(jfile, encoding='ascii')
+        self.data = json.load(jfile)
 
 
 #noinspection PyArgumentEqualDefault
@@ -303,7 +303,7 @@ class Level(LevelData):
 
     def __init_enemy(self, sidx, position):
         sprite = self.get_sprite(sidx)
-        num = (sprite.param & 0x7F) / 3
+        num = (sprite.param & 0x7F) // 3
         anims, frames = gl.enemies.get_anims(num)
         if num == 2:  # enemy types can be hardcoded
             entity = ga.EnemyFlying([sprite], position)
@@ -428,7 +428,7 @@ def main():
     game.init()
     for l in range(8):
         lname = gl.level_names[l]
-        print "Level:", lname
+        print("Level:", lname)
         level = Level()
         level.load(lname)
         for s in range(256):
@@ -442,10 +442,10 @@ def main():
                     else:
                         actives[name] = 1
                 if actives:
-                    print "Screen %3d: " % s,
+                    print("Screen %3d: " % s),
                     for key, value in actives.items():
-                        print "%s(%d) " % (key, value),
-                    print
+                        print("%s(%d) " % (key, value)),
+                    print()
     game.quit()
 
 if __name__ == "__main__":

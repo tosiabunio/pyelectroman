@@ -73,15 +73,15 @@ class InfoLines:
         if len(self.lines) == self.max_lines:
             self.lines.pop(0)
         self.lines.append(text)
-        self.update = time.clock()
+        self.update = time.time()
 
     def show(self):
         pos = self.position.copy()
         for line in self.lines:
             pos = message(pos, line)
-        if (time.clock() - self.update > self.max_time) and self.lines:
+        if (time.time() - self.update > self.max_time) and self.lines:
             self.lines.pop(0)
-            self.update = time.clock()
+            self.update = time.time()
 
 info_lines = InfoLines(XY(180, 8), 5, 5) #default info lines buffer
 
@@ -121,7 +121,7 @@ class LEDBar:
         self.value = value % 7
 
     def display(self):
-        #self.value = int(time.clock()) % 7
+        #self.value = int(time.time()) % 7
         position = XY.from_self(self.position)
         for led in range(6):
             gl.display.blit(self.leds[self.mapping[self.value][led]], position)

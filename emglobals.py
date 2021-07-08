@@ -187,7 +187,7 @@ def rand():
 
 def random(num):
     """ #define random(num)(int)(((long)rand()*(num))/(RAND_MAX+1)) """
-    return int((rand() * num) / 0x8000)
+    return int((rand() * num) // 0x8000)
 
 # -----------------------------------------------------------------------------
 # test code below
@@ -196,17 +196,17 @@ def random(num):
 def main():
     srand(0)
     for i in range(16):
-        print rand()
+        print(rand())
     init_screen_randoms(0)
-    print screen_randoms
+    print(screen_randoms)
     init_screen_randoms(1)
-    print screen_randoms
+    print(screen_randoms)
     init_screen_randoms(2)
-    print screen_randoms
+    print(screen_randoms)
     init_screen_randoms(18)
-    print screen_randoms
+    print(screen_randoms)
     init_screen_randoms(34)
-    print screen_randoms
+    print(screen_randoms)
 
 if __name__ == "__main__":
     main()
