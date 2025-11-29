@@ -119,7 +119,7 @@ def main():
     all_files = glob.glob(os.path.join(folder, "*.ggc"))
     for filename in all_files:
         fname = os.path.splitext(os.path.split(filename)[1])[0]
-        print "Processing level file:", fname
+        print("Processing level file:", fname)
         level = LevelFile()
         level.open(filename)
         level.read()
@@ -130,7 +130,7 @@ def main():
         f = open(os.path.join(destination, "%s.ebl" % fname), "wt")
         json.dump(jdata, f, sort_keys = True)
         f.close()
-    print "Done."
+    print("Done.")
 
 
 if __name__ == '__main__':

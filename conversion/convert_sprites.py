@@ -173,10 +173,10 @@ def main():
             sprites_file = GGSFile()
             sprites_file.open(os.path.join(folder, filename))
             sprites_file.read()
-            print "File '%s' opened." % filename
-            print "%d sprites loaded." % sprites_file.get_number()
+            print("File '%s' opened." % filename)
+            print("%d sprites loaded." % sprites_file.get_number())
             sprites = sprites_file.get_sprites()
-            print "Converting and writing sprites and data..."
+            print("Converting and writing sprites and data...")
             sprites_path = os.path.join(destination, fname)
             if not os.path.exists(sprites_path):
                 os.mkdir(sprites_path)
@@ -204,10 +204,10 @@ def main():
                     w = png.Writer(width = 24, height = 24, alpha = True)
                     w.write(f, png_data)
                     f.close()
-            print "File processed successfully."
-        print "All done."
+            print("File processed successfully.")
+        print("All done.")
     except MyError as error:
-        print error
+        print(error)
 
 if __name__ == '__main__':
     main()

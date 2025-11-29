@@ -23,7 +23,7 @@ def load_sprite(filename):
 
 def load_sprites(set1, set2):
     global sprites
-    print "Loading sprite sets: %s, %s" % (set1, set2)
+    print("Loading sprite sets: %s, %s" % (set1, set2))
     for sprite in range(1,128):
         snum = (sprite, sprite - 64)[sprite >= 64]
         if sprite < 64:
@@ -39,8 +39,8 @@ def load_sprites(set1, set2):
 
 def load_level(filename):
     f = open(filename, "rt")
-    level = json.load(f, encoding='ascii')
-    print "Loading level:", filename
+    level = json.load(f)
+    print("Loading level:", filename)
     global names, screens
     names = level["names"]
     screens = level["screens"]
@@ -74,7 +74,7 @@ def combine_screen_layers(s):
                                         png_data[py][px + 1] = row[dc + 1]
                                         png_data[py][px + 2] = row[dc + 2]
     if ((s + 1) % 16 == 0):
-        print
+        print()
     return png_data
 
 TY = 16
@@ -85,24 +85,24 @@ def main():
         png_screens = []
         lname = os.path.splitext(os.path.split(level)[1])[0]
         load_level(level)
-        print "Processing screens..."
+        print("Processing screens...")
         for s in range(TY * 16):
             png_screens.append(combine_screen_layers(s))
-        print "Preparing big image data..."
+        print("Preparing big image data...")
         png_data = []
         for srow in range(24 * 8 * TY):
             png_data.append([])
-            y = srow / (24 * 8)
+            y = srow // (24 * 8)
             prow = srow % (24 * 8)
             for x in range(16):
                 data = png_screens[y * 16 + x][prow]
                 png_data[srow].extend(data)
-        print "Writing %s file..." % (lname + ".png")
+        print("Writing %s file..." % (lname + ".png"))
         f = open(lname + ".png", "wb")
         w = png.Writer(width = 24 * 13 * 16, height = 24 * 8 * TY, alpha = False)
         w.write(f, png_data)
         f.close()
-    print "Done."
+    print("Done.")
 
 if __name__ == '__main__':
     main()
