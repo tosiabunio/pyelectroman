@@ -684,6 +684,28 @@ class EnemyFlying(Entity):
         gl.display.blit(self.anims[self.anim][self.frame].image,
                         self.get_position())
 
+
+class Explosion(Entity):
+    """
+    Explosion animation entity.
+    Plays explosion animation once then removes itself.
+    Matches original explosion_proc from EB_ENEM.C:51-56
+    """
+    def __init__(self, sprites, position):
+        Entity.__init__(self, sprites, position)
+        self.frame = 0
+
+    def update(self):
+        """Cycle through explosion animation frames"""
+        self.frame += 1
+        if self.frame >= len(self.sprites):
+            # Animation complete - remove explosion
+            gl.screen.active.remove(self)
+
+    def name(self):
+        return "Explosion"
+
+
 # -----------------------------------------------------------------------------
 # test code below
 

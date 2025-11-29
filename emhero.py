@@ -22,6 +22,24 @@ touch_procs = {0 : "none", 1 : "battery", 2 : "teleport", 3 :"checkpoint",
                7 : "special good", 8 : "special bad"}
 
 
+def put_explosion(x, y):
+    """
+    Spawn an explosion at the given position.
+    Matches original put_explosion from EB_ENEM.C:59-67
+    """
+    # Get explosion sprites from weapons set (sprites 0-7)
+    explosion_sprites = gl.weapons.weapon["EXPLOSION"].anims
+
+    # Create explosion entity at position
+    explosion = ga.Explosion(explosion_sprites, XY(x, y))
+
+    # Add to current screen's active entities
+    if gl.screen:
+        gl.screen.active.append(explosion)
+
+    logging.debug("Explosion spawned at (%d, %d)", x, y)
+
+
 #noinspection PySimplifyBooleanCheck,PyArgumentEqualDefault
 class PlayerEntity(ga.FSM, ga.Entity):
     """
@@ -103,19 +121,27 @@ class PlayerEntity(ga.FSM, ga.Entity):
         Display player's character at current position using
         calculated sprites taken from the reference arrays.
         """
-        position = self.get_position()
-        # display top sprite
-        sprite = self.sprites[self.anim][self.frame][0]
-        sprite = self.data.get_sprite(sprite)
-        gl.display.blit(sprite.image, position)
-        # display bottom sprite
-        position += (0, gl.SPRITE_Y)
-        sprite = self.sprites[self.anim][self.frame][1]
-        sprite = self.data.get_sprite(sprite)
-        gl.display.blit(sprite.image, position)
-        if gl.show_collisions:
-            # show collision box and ground testing point
-            self.display_collisions()
+        # Don't display player during death animation
+        if self.state == self.state_death:
+            return
+
+        try:
+            position = self.get_position()
+            # display top sprite
+            sprite = self.sprites[self.anim][self.frame][0]
+            sprite = self.data.get_sprite(sprite)
+            gl.display.blit(sprite.image, position)
+            # display bottom sprite
+            position += (0, gl.SPRITE_Y)
+            sprite = self.sprites[self.anim][self.frame][1]
+            sprite = self.data.get_sprite(sprite)
+            gl.display.blit(sprite.image, position)
+            if gl.show_collisions:
+                # show collision box and ground testing point
+                self.display_collisions()
+        except (KeyError, IndexError) as e:
+            logging.error("Display error: anim=%s, frame=%d, state=%s, error=%s",
+                         self.anim, self.frame, self.state.__name__, e)
 
     def display_collisions(self, color=pygame.Color(255, 128, 255)):
         """Display player's character bounding box."""
@@ -312,6 +338,44 @@ class PlayerEntity(ga.FSM, ga.Entity):
             self.frame -= 1
             self.counter -= 1
 
+    def state_death(self, init=False):
+        """
+        Handle player death sequence.
+        Matches original hero_before_kill_proc -> hero_kill_proc -> hero_after_kill_proc
+        """
+        if init:
+            # Initial death state (hero_before_kill_proc)
+            self.death_timer = 0
+            pos = self.get_position()
+
+            # Spawn initial explosions (EB_HERO.C:932-933)
+            put_explosion(int(pos.x - 2), int(pos.y))
+            put_explosion(int(pos.x + 1), int(pos.y + 23))
+
+            logging.info("Player death - position: %s", pos)
+            di.info_lines.add("Player died!")
+
+        self.death_timer += 1
+
+        if self.death_timer < 10:
+            # Death animation phase (hero_kill_proc)
+            # Spawn random explosions around player for 10 frames (EB_HERO.C:920)
+            pos = self.get_position()
+
+            # Random offset: X - 12 + random(24), Y + random(24)
+            offset_x = -12 + gl.random(24)
+            offset_y = gl.random(24)
+            put_explosion(int(pos.x + offset_x), int(pos.y + offset_y))
+
+            # TODO: PLAY_SAMPLE(blast_s) - sound effect
+        elif self.death_timer < 70:
+            # After-death countdown phase (hero_after_kill_proc)
+            # Wait for ~3 seconds (60 frames at 20fps)
+            pass
+        else:
+            # Timer expired - trigger respawn
+            self.respawn()
+
     def find_teleport_target(self, start_pos):
         """
         Find a suitable teleport target.
@@ -408,8 +472,8 @@ class PlayerEntity(ga.FSM, ga.Entity):
                     # checkpoint
                     pass
                 elif touch_type == 4:
-                    # killer
-                    pass
+                    # killer - trigger death
+                    self.new_state(self.state_death)
                 elif touch_type == 5:
                     # floppy
                     obj.vanish()  # remove floppy from the map
@@ -424,6 +488,45 @@ class PlayerEntity(ga.FSM, ga.Entity):
                     # special bad
                     pass
             di.message(XY(8, 20), "touch: %s" % names)
+
+    def respawn(self):
+        """
+        Respawn player at checkpoint after death.
+        Matches original init_level() - unlimited retries.
+        """
+        # Get checkpoint position and screen
+        checkpoint_screen = gl.checkpoint.get_screen()
+        checkpoint_pos = gl.checkpoint.get_position()
+
+        # If no checkpoint is set (shouldn't happen but safety check)
+        if checkpoint_pos is None:
+            logging.warning("No checkpoint set, using default spawn")
+            checkpoint_screen = 0
+            checkpoint_pos = XY(0, 0)
+
+        # Change to checkpoint screen
+        if checkpoint_screen != gl.screen_manager.get_screen_number():
+            gl.screen_manager.change_screen(checkpoint_screen)
+            # Update global screen reference immediately
+            gl.screen = gl.screen_manager.get_screen()
+
+        # Position player at checkpoint using stand() method (same as level load)
+        respawn_pos = checkpoint_pos + XY(gl.SPRITE_X // 2, gl.SPRITE_Y)
+        self.stand(respawn_pos)
+
+        # Reset player stats
+        self.temperature = 0
+        self.death_timer = 0
+
+        # Recalculate to_ground before state switch
+        self.to_ground = self.check_ground(gl.screen)
+
+        # Return to standing state
+        self.switch_state(self.state_stand)
+
+        logging.info("Respawned at checkpoint: screen=%d, pos=%s",
+                     checkpoint_screen, self.get_position())
+        di.info_lines.add("Respawned at checkpoint")
 
     def stand(self, position):
         """Place player's model feet at position"""

@@ -47,7 +47,8 @@ class Gameplay:
                              pygame.K_6: self.on_k_6,
                              pygame.K_7: self.on_k_7,
                              pygame.K_8: self.on_k_8,
-                             pygame.K_0: self.on_k_0}
+                             pygame.K_0: self.on_k_0,
+                             pygame.K_d: self.on_k_d}
         self.deferred = None
 
     def init_map(self):
@@ -165,6 +166,7 @@ class Gameplay:
         gl.show_collisions = False if gl.show_collisions else True
 
     def on_k_1(self):
+        di.info_lines.add("level 1")
         if pygame.key.get_mods() & pygame.KMOD_SHIFT:
             gl.player.select_weapon(1)
         else:
@@ -172,6 +174,7 @@ class Gameplay:
             self.load_level()
 
     def on_k_2(self):
+        di.info_lines.add("level 2")
         if pygame.key.get_mods() & pygame.KMOD_SHIFT:
             gl.player.select_weapon(2)
         else:
@@ -179,6 +182,7 @@ class Gameplay:
             self.load_level()
 
     def on_k_3(self):
+        di.info_lines.add("level 3")
         if pygame.key.get_mods() & pygame.KMOD_SHIFT:
             gl.player.select_weapon(3)
         else:
@@ -186,6 +190,7 @@ class Gameplay:
             self.load_level()
 
     def on_k_4(self):
+        di.info_lines.add("level 4")
         if pygame.key.get_mods() & pygame.KMOD_SHIFT:
             gl.player.select_weapon(4)
         else:
@@ -193,6 +198,7 @@ class Gameplay:
             self.load_level()
 
     def on_k_5(self):
+        di.info_lines.add("level 5")
         if pygame.key.get_mods() & pygame.KMOD_SHIFT:
             gl.player.select_weapon(5)
         else:
@@ -200,14 +206,17 @@ class Gameplay:
             self.load_level()
 
     def on_k_6(self):
+        di.info_lines.add("level 6")
         gl.current_level = 5
         self.load_level()
 
     def on_k_7(self):
+        di.info_lines.add("level 7")
         gl.current_level = 6
         self.load_level()
 
     def on_k_8(self):
+        di.info_lines.add("level 8")
         gl.current_level = 7
         self.load_level()
 
@@ -217,6 +226,12 @@ class Gameplay:
 
     def on_k_escape(self):
         gl.loop_main_loop = False
+
+    def on_k_d(self):
+        """Debug: trigger player death (Shift+D)"""
+        if pygame.key.get_mods() & pygame.KMOD_SHIFT:
+            gl.player.new_state(gl.player.state_death)
+            di.info_lines.add("Debug: Death triggered")
 
     def load_level(self):
         gl.level.load(gl.level_names[gl.current_level])
@@ -237,10 +252,13 @@ class Gameplay:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 gl.loop_main_loop = False
-        keys = pygame.key.get_pressed()
-        for key, state in enumerate(keys):
-            if (key in self.key_handlers) and state:
-                self.key_handlers[key]()
+            elif event.type == pygame.KEYDOWN:
+                # Handle Alt-X to exit (matches original game)
+                if event.key == pygame.K_x and pygame.key.get_mods() & pygame.KMOD_ALT:
+                    gl.loop_main_loop = False
+                # Handle key press events (single trigger, not continuous)
+                elif event.key in self.key_handlers:
+                    self.key_handlers[event.key]()
         self.controller.update()
 
     def loop_run(self):
