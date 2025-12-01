@@ -5,6 +5,7 @@ import emdata as da
 from emglobals import XY
 import pygame
 import copy
+import logging
 
 
 class Controller:
@@ -413,7 +414,9 @@ class ActiveCheckpoint:
     def update(self, level, screen, position):
         self.level = level
         self.screen = screen
-        self.position = position
+        self.position = copy.copy(position)  # copy to avoid reference issues
+        logging.info("Checkpoint updated: level=%d, screen=%d, pos=%s",
+                     level, screen, position)
 
     def get_level(self):
         return self.level
@@ -615,6 +618,26 @@ class Display(Entity):
 class Checkpoint(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
+        self.activated = False
+        # Load activation cross sprite from info set
+        self.cross_sprite = None
+        if gl.info:
+            self.cross_sprite = gl.info.get_sprite(5)  # small cross sprite
+
+    def activate(self):
+        """Visual indication checkpoint is now active"""
+        self.activated = True
+        # Change to last frame if multiple frames available
+        if len(self.sprites) > 1:
+            self.frame = len(self.sprites) - 1
+
+    def display(self):
+        """Display checkpoint with cross overlay if activated"""
+        Entity.display(self)
+        # Display cross sprite overlay when activated
+        if self.activated and self.cross_sprite:
+            pos = self.get_position()
+            gl.display.blit(self.cross_sprite.image, pos)
 
 
 class Teleport(Entity):
@@ -630,6 +653,27 @@ class TeleportBase(Entity):
 class Exit(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
+        # Load indicator sprites from info set (blinking triangles)
+        self.indicator_sprites = []
+        if gl.info:
+            # Use sprites 6-7 for blinking indicators (orange triangles)
+            self.indicator_sprites = [gl.info.get_sprite(6), gl.info.get_sprite(7)]
+
+    def display(self):
+        """Display exit door with blinking indicators if 3 disks collected"""
+        # Display base exit sprite
+        Entity.display(self)
+
+        # Display blinking indicators over exit when available (3 disks)
+        if gl.disks >= 3 and self.indicator_sprites:
+            # Blink using frame counter (matches original: main_cntr & 0x04)
+            if gl.counter & 0x04:
+                pos = self.get_position()
+                # Display multiple indicator sprites across the exit width
+                for i in range(5):  # 5 indicators as shown in screenshot
+                    indicator_pos = XY(pos.x + i * gl.SPRITE_X // 5, pos.y)
+                    sprite_idx = i % len(self.indicator_sprites)
+                    gl.display.blit(self.indicator_sprites[sprite_idx].image, indicator_pos)
 
 
 class CannonLeft(Entity):

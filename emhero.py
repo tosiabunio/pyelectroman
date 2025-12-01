@@ -409,8 +409,9 @@ class PlayerEntity(ga.FSM, ga.Entity):
     def inc_power(self):
         """
         Increase available power.
+        Matches original: gun_power = (++gun_power > 5) ? 5 : gun_power
         """
-        if self.power < 6:
+        if self.power < 5:
             self.select_weapon(self.power + 1)
             di.info_lines.add("battery collected")
 
@@ -431,9 +432,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
                 self.cooldown = 4
 
     def show_hud(self):
-        # display disks if collected
-        if not gl.counter % 20:
-            gl.disks += 1
+        # update disk display
         di.indicators.disks.set_value(gl.disks)
         # display LED indicators
         di.indicators.left.set_value(self.temp)
@@ -459,9 +458,10 @@ class PlayerEntity(ga.FSM, ga.Entity):
                 names += touch_procs[touch_type] + " "
                 # handle touch according to its type
                 if touch_type == 1:
-                    # battery
-                    self.inc_power()
-                    obj.vanish()  # remove battery from the map
+                    # battery - only collect if not at max power
+                    if self.power < 5:
+                        self.inc_power()
+                        obj.vanish()  # remove battery from the map
                 elif touch_type == 2:
                     if self.controller.down:
                         self.find_teleport_target(obj.get_position())
@@ -469,18 +469,49 @@ class PlayerEntity(ga.FSM, ga.Entity):
                     # teleport
                     pass
                 elif touch_type == 3:
-                    # checkpoint
-                    pass
+                    # checkpoint - activate if different from current
+                    current_screen = gl.screen_manager.get_screen_number()
+                    current_pos = obj.get_position()
+
+                    # Only activate if different checkpoint (EB_HERO.C:514)
+                    if (gl.checkpoint.get_screen() != current_screen or
+                        gl.checkpoint.get_position() != current_pos):
+                        # Update checkpoint
+                        gl.checkpoint.update(gl.current_level, current_screen, current_pos)
+
+                        # Reset weapon stats to 0 (EB_HERO.C:519)
+                        self.power = 0
+                        self.temp = 0
+                        self.temperature = 0
+                        self.select_weapon(0)
+
+                        # Visual feedback
+                        if hasattr(obj, 'activate'):
+                            obj.activate()
+                        di.info_lines.add("Checkpoint activated")
+                        # TODO: PLAY_SAMPLE(checkp_s) - sound effect
                 elif touch_type == 4:
-                    # killer - trigger death
-                    self.new_state(self.state_death)
+                    # killer - trigger death (only if not already dying)
+                    if self.state != self.state_death:
+                        self.new_state(self.state_death)
                 elif touch_type == 5:
-                    # floppy
+                    # floppy - collect disk
+                    gl.disks += 1
                     obj.vanish()  # remove floppy from the map
-                    pass
+                    di.info_lines.add("Disk collected (%d/3)" % gl.disks)
+                    # TODO: PLAY_SAMPLE(disk_s) - sound effect
                 elif touch_type == 6:
-                    # exit
-                    pass
+                    # exit - check disk requirement (EB_HERO.C:548-560)
+                    if gl.disks >= 3:
+                        # Get next level code from sprite param
+                        next_level = obj.sprites[0].param
+                        di.info_lines.add("Level complete!")
+                        # Set exit flag for level transition
+                        gl.exit_level_flag = True
+                        gl.next_level_code = next_level
+                        # TODO: PLAY_SAMPLE(exit_s) - sound effect
+                    else:
+                        di.info_lines.add("Need %d more disk(s)" % (3 - gl.disks))
                 elif touch_type == 7:
                     # special good
                     pass
@@ -517,6 +548,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
         # Reset player stats
         self.temperature = 0
         self.death_timer = 0
+        self.touched = []  # Clear touched objects to prevent immediate re-death
 
         # Recalculate to_ground before state switch
         self.to_ground = self.check_ground(gl.screen)
@@ -576,8 +608,9 @@ class PlayerEntity(ga.FSM, ga.Entity):
         # intialize some variables
         self.screen = gl.screen_manager.get_screen()
         self.touched = []
-        # check for touching objects at current position
-        self.check_touch()
+        # check for touching objects at current position (but not during death)
+        if self.state != self.state_death:
+            self.check_touch()
         # keep track of to ground distance
         self.to_ground = self.check_ground(self.screen)
         di.message(XY(8, 8), "to ground: %d" % self.to_ground)

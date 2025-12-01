@@ -54,6 +54,8 @@ screen = None  # current screen definition
 info = None  # data class for info sprites
 counter = 0 # +1 every loop
 disks = 0 # number of disks collected
+exit_level_flag = False # set when player exits level
+next_level_code = 0 # next level to load (from exit sprite param)
 
 # random numbers for active screen
 screen_randoms = []
@@ -121,7 +123,17 @@ class XY:
         x = self.x - other.x
         y = self.y - other.y
         return XY(x, y)
-		
+
+    def __eq__(self, other):
+        """Compare two XY objects for equality."""
+        if not isinstance(other, XY):
+            return False
+        return self.x == other.x and self.y == other.y
+
+    def __ne__(self, other):
+        """Compare two XY objects for inequality."""
+        return not self.__eq__(other)
+
     def __str__(self):
         """Return human-readable representation."""
         return "XY(%d, %d)" % (self.x, self.y)

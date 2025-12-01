@@ -48,7 +48,8 @@ class Gameplay:
                              pygame.K_7: self.on_k_7,
                              pygame.K_8: self.on_k_8,
                              pygame.K_0: self.on_k_0,
-                             pygame.K_d: self.on_k_d}
+                             pygame.K_d: self.on_k_d,
+                             pygame.K_f: self.on_k_f}
         self.deferred = None
 
     def init_map(self):
@@ -233,6 +234,12 @@ class Gameplay:
             gl.player.new_state(gl.player.state_death)
             di.info_lines.add("Debug: Death triggered")
 
+    def on_k_f(self):
+        """Debug: give all 3 disks (Shift+F)"""
+        if pygame.key.get_mods() & pygame.KMOD_SHIFT:
+            gl.disks = 3
+            di.info_lines.add("Debug: 3 disks added")
+
     def load_level(self):
         gl.level.load(gl.level_names[gl.current_level])
         gl.screen_manager.add_screens(gl.level.get_screens())
@@ -294,6 +301,22 @@ class Gameplay:
             self.loop_begin()
             self.loop_events()
             self.loop_run()
+
+            # Check for level exit (EB.C:263-276)
+            if gl.exit_level_flag:
+                gl.exit_level_flag = False
+                # Load next level based on exit code
+                if gl.next_level_code < len(gl.level_names):
+                    gl.current_level = gl.next_level_code
+                    # Reset checkpoint to level start
+                    gl.checkpoint.update(gl.current_level, 0, XY(0, 0))
+                    self.load_level()
+                    di.info_lines.add("Level %d: %s" % (gl.current_level + 1, gl.level_names[gl.current_level]))
+                else:
+                    # Game completed
+                    di.info_lines.add("Congratulations! Game completed!")
+                    gl.loop_main_loop = False
+
             gl.logic_time = time.perf_counter() - logic_start
             # logic processing ended
             # rendering starts here

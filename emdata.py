@@ -369,9 +369,12 @@ class Level(LevelData):
             entity.set_origin(screen)  # remember screen for deletion
             screen.active.append(entity)
             if isinstance(entity, ga.Checkpoint) and param == 1:
-                # active checkpoint - level start
+                # active checkpoint - level start (only update if different)
                 level_number = gl.level_names.index(self.name)
-                gl.checkpoint.update(level_number, screen_number, position)
+                if (gl.checkpoint.get_level() != level_number or
+                    gl.checkpoint.get_screen() != screen_number or
+                    gl.checkpoint.get_position() != position):
+                    gl.checkpoint.update(level_number, screen_number, position)
         else:
             entity = ga.Entity([sprite], position)
             screen.background.append(entity)
