@@ -278,7 +278,11 @@ class Level(LevelData):
 
     def __init_exit(self, sidx, position):
         sprite = self.get_sprite(sidx)
+        # Also load the next sprite (sidx+1) which is the indicator (yellow triangle)
+        indicator_sprite = self.get_sprite(sidx + 1)
         entity = ga.Exit([sprite], position)
+        # Pass the indicator sprite separately
+        entity.indicator_sprite = indicator_sprite
         return entity
 
     def __init_cannonleft(self, sidx, position):

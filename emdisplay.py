@@ -10,13 +10,16 @@ import time
 #noinspection PyArgumentEqualDefault
 def init_display():
     pygame.init()
-    gl.window = pygame.display.set_mode((640, 480), 0, 32)
+    # Use 2x scaling for better visibility on high-res monitors
+    gl.window = pygame.display.set_mode((1280, 960), 0, 32)
     pygame.display.set_caption("Electro Man - Python Version")
-    gl.font["xsmall"] = pygame.font.SysFont("tahoma", 8)
-    gl.font["small"] = pygame.font.SysFont("tahoma", 10)
-    gl.font["normal"] = pygame.font.SysFont("tahoma", 12)
-    gl.font["large"] = pygame.font.SysFont("tahoma", 16)
-    subsrect = pygame.Rect(gl.OFFSET_X, gl.OFFSET_Y, gl.MAX_X, gl.MAX_Y)
+    # Larger fonts for 2x scaling
+    gl.font["xsmall"] = pygame.font.SysFont("tahoma", 16)
+    gl.font["small"] = pygame.font.SysFont("tahoma", 20)
+    gl.font["normal"] = pygame.font.SysFont("tahoma", 24)
+    gl.font["large"] = pygame.font.SysFont("tahoma", 32)
+    # Create a subsurface at 2x the original offset
+    subsrect = pygame.Rect(gl.OFFSET_X * 2, gl.OFFSET_Y * 2, gl.MAX_X * 2, gl.MAX_Y * 2)
     gl.display = gl.window.subsurface(subsrect)
 
 
@@ -33,7 +36,7 @@ def show():
     pygame.display.flip()
 
 
-def message(position, txt, font=None, antialias=False,
+def message(position, txt, font=None, antialias=True,
             color=pygame.Color(255, 255, 255)):
     """
     Display message on the screen. Uses entire surface.
@@ -83,7 +86,7 @@ class InfoLines:
             self.lines.pop(0)
             self.update = time.perf_counter()
 
-info_lines = InfoLines(XY(180, 8), 5, 5) #default info lines buffer
+info_lines = InfoLines(XY(180 * 2, 8), 4, 5) #default info lines buffer (scaled 2x)
 
 class DiskInfo:
     def __init__(self, position):
@@ -96,10 +99,13 @@ class DiskInfo:
         self.disks = min(disks, 3)  # cap at 3 disks max
 
     def display(self):
-        if self.disks:
+        # Blink when 3 disks collected (EB.C:784)
+        # if ((disk_num < 3) || (main_cntr & 0x04))
+        if self.disks and (self.disks < 3 or (gl.counter & 0x04)):
             position = XY.from_self(self.position)
+            scaled_disk = pygame.transform.scale2x(self.disk)
             for d in range(self.disks):
-                gl.display.blit(self.disk, position)
+                gl.display.blit(scaled_disk, XY(position.x * 2, position.y * 2))
                 position.x += 22
 
 class LEDBar:
@@ -124,9 +130,11 @@ class LEDBar:
         #self.value = int(time.perf_counter()) % 7
         position = XY.from_self(self.position)
         for led in range(6):
-            gl.display.blit(self.leds[self.mapping[self.value][led]], position)
+            scaled_led = pygame.transform.scale2x(self.leds[self.mapping[self.value][led]])
+            gl.display.blit(scaled_led, XY(position.x * 2, position.y * 2))
             position.x += 16
-        gl.display.blit(self.leds[4], position)
+        scaled_led = pygame.transform.scale2x(self.leds[4])
+        gl.display.blit(scaled_led, XY(position.x * 2, position.y * 2))
 
 class Indicators:
     def __init__(self):
@@ -162,7 +170,7 @@ class StatusLine:
     def __init__(self):
         self.message = ""
         self.font = gl.font["xsmall"]
-        self.position = XY(8, 465)
+        self.position = XY(8 * 2, 465 * 2)  # Scale 2x for larger window
 
     def add(self, text):
         self.message += text

@@ -127,15 +127,19 @@ class PlayerEntity(ga.FSM, ga.Entity):
 
         try:
             position = self.get_position()
-            # display top sprite
+            # display top sprite (scaled 2x)
             sprite = self.sprites[self.anim][self.frame][0]
             sprite = self.data.get_sprite(sprite)
-            gl.display.blit(sprite.image, position)
-            # display bottom sprite
+            scaled_image = pygame.transform.scale2x(sprite.image)
+            scaled_pos = XY(position.x * 2, position.y * 2)
+            gl.display.blit(scaled_image, scaled_pos)
+            # display bottom sprite (scaled 2x)
             position += (0, gl.SPRITE_Y)
             sprite = self.sprites[self.anim][self.frame][1]
             sprite = self.data.get_sprite(sprite)
-            gl.display.blit(sprite.image, position)
+            scaled_image = pygame.transform.scale2x(sprite.image)
+            scaled_pos = XY(position.x * 2, position.y * 2)
+            gl.display.blit(scaled_image, scaled_pos)
             if gl.show_collisions:
                 # show collision box and ground testing point
                 self.display_collisions()
@@ -316,7 +320,14 @@ class PlayerEntity(ga.FSM, ga.Entity):
             self.frame = 0
         if not init:
             if self.counter == 0:
-                return self.new_state(self.state_teleport_in)
+                # Check if this is a level exit (EB_HERO.C:853)
+                # If exit_level_flag is set, don't transition to teleport_in
+                # The main loop will handle the level transition
+                if gl.exit_level_flag:
+                    # Stay in this state, level transition will happen in main loop
+                    pass
+                else:
+                    return self.new_state(self.state_teleport_in)
             self.frame += 1
             self.counter -= 1
 
@@ -504,11 +515,15 @@ class PlayerEntity(ga.FSM, ga.Entity):
                     # exit - check disk requirement (EB_HERO.C:548-560)
                     if gl.disks >= 3:
                         # Get next level code from sprite param
-                        next_level = obj.sprites[0].param
+                        # NOTE: The param seems to be encoded, for now just advance to next level
+                        next_level = gl.current_level + 1
                         di.info_lines.add("Level complete!")
                         # Set exit flag for level transition
                         gl.exit_level_flag = True
                         gl.next_level_code = next_level
+                        # Trigger teleport out animation (EB_HERO.C:555-558)
+                        # teleport_flag++, teleport_x=0, teleport_y=0
+                        self.new_state(self.state_teleport_out)
                         # TODO: PLAY_SAMPLE(exit_s) - sound effect
                     else:
                         di.info_lines.add("Need %d more disk(s)" % (3 - gl.disks))
@@ -518,7 +533,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
                 elif touch_type == 8:
                     # special bad
                     pass
-            di.message(XY(8, 20), "touch: %s" % names)
+            di.message(XY(16, 40), "touch: %s" % names)
 
     def respawn(self):
         """
@@ -613,7 +628,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
             self.check_touch()
         # keep track of to ground distance
         self.to_ground = self.check_ground(self.screen)
-        di.message(XY(8, 8), "to ground: %d" % self.to_ground)
+        di.message(XY(16, 8), "to ground: %d" % self.to_ground)
         # run FSM for the player's entity
         if not self.controller.debug:
             self.run_fsm()
@@ -707,10 +722,17 @@ class Projectile(ga.Entity):
         if self.type[0] != "5":
             ga.Entity.display(self)
         else:
+            # Power level 5 projectiles are 2 sprites tall (scaled 2x)
             sprite = self.sprites[0]
-            gl.display.blit(sprite.image, self.get_position())
+            pos = self.get_position()
+            scaled_image = pygame.transform.scale2x(sprite.image)
+            scaled_pos = XY(pos.x * 2, pos.y * 2)
+            gl.display.blit(scaled_image, scaled_pos)
             sprite = self.sprites[1]
-            gl.display.blit(sprite.image, self.get_position() + XY(0, gl.SPRITE_Y))
+            pos2 = pos + XY(0, gl.SPRITE_Y)
+            scaled_image = pygame.transform.scale2x(sprite.image)
+            scaled_pos = XY(pos2.x * 2, pos2.y * 2)
+            gl.display.blit(scaled_image, scaled_pos)
 
 # -----------------------------------------------------------------------------
 # test code below

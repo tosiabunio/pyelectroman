@@ -52,6 +52,7 @@ class Gameplay:
                              pygame.K_f: self.on_k_f}
         self.deferred = None
 
+    @property
     def init_map(self):
         """Initialize level map"""
         # pylint: disable-msg=E1121
@@ -89,7 +90,9 @@ class Gameplay:
         pixels[(scr % 16) * 2 + 0][(scr // 16) * 2 + 1] = CURRENT
         pixels[(scr % 16) * 2 + 1][(scr // 16) * 2 + 1] = CURRENT
         del pixels
-        gl.window.blit(screens_map_copy, pos)
+        # Scale map 2x for larger window
+        scaled_map = pygame.transform.scale(screens_map_copy, (64, 64))
+        gl.window.blit(scaled_map, pos)
 
     def show_info(self):
         """Display status line"""
@@ -243,7 +246,7 @@ class Gameplay:
     def load_level(self):
         gl.level.load(gl.level_names[gl.current_level])
         gl.screen_manager.add_screens(gl.level.get_screens())
-        self.screens_map = self.init_map()
+        self.screens_map = self.init_map
         start_screen = gl.checkpoint.get_screen()
         start_position = gl.checkpoint.get_position()
         gl.disks = 0 # no disks collected after level load
@@ -280,12 +283,13 @@ class Gameplay:
         self.display_hero()
         self.display_deferred()
         self.display_indicators()
-        self.show_map((640 - 32 - 8, 8))
+        # Move minimap to upper right corner (scaled 2x: 1280 - 64 - 16, 16)
+        self.show_map((1280 - 64 - 16, 16))
         self.show_info()
 
     def show(self):
         """Display the screen."""
-        di.message(XY(500, 8),"logic: {0:>4.1f}\nrender: {1:>4.1f}".format(
+        di.message(XY(1000, 8),"logic: {0:>4.1f}\nrender: {1:>4.1f}".format(
             round(gl.logic_time * 1000, 1), round(gl.render_time * 1000, 1)))
         di.show()
 

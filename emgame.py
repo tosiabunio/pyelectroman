@@ -160,7 +160,10 @@ class Entity:
         """
         sprite = self.sprites[self.frame]
         if not sprite.flag("in_front"):
-            gl.display.blit(sprite.image, self.get_position())
+            # Scale sprite 2x and position 2x for larger window
+            scaled_image = pygame.transform.scale2x(sprite.image)
+            scaled_pos = XY(self.get_position().x * 2, self.get_position().y * 2)
+            gl.display.blit(scaled_image, scaled_pos)
             if gl.show_collisions and sprite.flag("active"):
                 # show collision box or lines
                 self.display_collisions(pygame.Color(255, 255, 0))
@@ -170,7 +173,10 @@ class Entity:
 
     def display_deferred(self):
         """Deferred display method usef for in_front sprites."""
-        gl.display.blit(self.sprites[self.frame].image, self.get_position())
+        # Scale sprite 2x and position 2x for larger window
+        scaled_image = pygame.transform.scale2x(self.sprites[self.frame].image)
+        scaled_pos = XY(self.get_position().x * 2, self.get_position().y * 2)
+        gl.display.blit(scaled_image, scaled_pos)
         if gl.show_collisions:
             # show collision box or lines
             self.display_collisions(pygame.Color(255, 255, 0))
@@ -637,7 +643,9 @@ class Checkpoint(Entity):
         # Display cross sprite overlay when activated
         if self.activated and self.cross_sprite:
             pos = self.get_position()
-            gl.display.blit(self.cross_sprite.image, pos)
+            scaled_cross = pygame.transform.scale2x(self.cross_sprite.image)
+            scaled_pos = XY(pos.x * 2, pos.y * 2)
+            gl.display.blit(scaled_cross, scaled_pos)
 
 
 class Teleport(Entity):
@@ -653,27 +661,36 @@ class TeleportBase(Entity):
 class Exit(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
-        # Load indicator sprites from info set (blinking triangles)
-        self.indicator_sprites = []
-        if gl.info:
-            # Use sprites 6-7 for blinking indicators (orange triangles)
-            self.indicator_sprites = [gl.info.get_sprite(6), gl.info.get_sprite(7)]
+        # The indicator sprite (yellow triangle) will be set by emdata.__init_exit()
+        # It loads the sprite at index (exit_index + 1) from the level sprite set
+        self.indicator_sprite = None
+        self.indicator_entity = None
+
+    def update(self):
+        """Create indicator entity when 3 disks collected"""
+        if gl.disks >= 3 and self.indicator_sprite and not self.indicator_entity:
+            # Create a touchable indicator entity above the exit
+            pos = self.get_position()
+            indicator_pos = XY(pos.x, pos.y - gl.SPRITE_Y)
+            self.indicator_entity = ExitIndicator([self.indicator_sprite], indicator_pos)
+            # Add to active entities so it can be touched
+            gl.screen.active.append(self.indicator_entity)
+            self.indicator_entity.set_origin(gl.screen)
+
+
+class ExitIndicator(Entity):
+    """The touchable indicator sprite that appears above the exit"""
+    def __init__(self, sprites, position):
+        Entity.__init__(self, sprites, position)
+
+    def get_touch(self):
+        """Exit indicators should return touch type 6 for exit handling"""
+        return 6
 
     def display(self):
-        """Display exit door with blinking indicators if 3 disks collected"""
-        # Display base exit sprite
-        Entity.display(self)
-
-        # Display blinking indicators over exit when available (3 disks)
-        if gl.disks >= 3 and self.indicator_sprites:
-            # Blink using frame counter (matches original: main_cntr & 0x04)
-            if gl.counter & 0x04:
-                pos = self.get_position()
-                # Display multiple indicator sprites across the exit width
-                for i in range(5):  # 5 indicators as shown in screenshot
-                    indicator_pos = XY(pos.x + i * gl.SPRITE_X // 5, pos.y)
-                    sprite_idx = i % len(self.indicator_sprites)
-                    gl.display.blit(self.indicator_sprites[sprite_idx].image, indicator_pos)
+        """Display indicator only when blinking"""
+        if gl.counter & 0x04:
+            Entity.display(self)
 
 
 class CannonLeft(Entity):
@@ -709,8 +726,10 @@ class EnemyPlatform(Entity):
         pass
 
     def display(self):
-        gl.display.blit(self.anims[self.anim][self.frame].image,
-                        self.get_position())
+        # Scale enemy sprite 2x
+        scaled_image = pygame.transform.scale2x(self.anims[self.anim][self.frame].image)
+        scaled_pos = XY(self.get_position().x * 2, self.get_position().y * 2)
+        gl.display.blit(scaled_image, scaled_pos)
 
 class EnemyFlying(Entity):
     def __init__(self, sprites, position):
@@ -725,8 +744,10 @@ class EnemyFlying(Entity):
         pass
 
     def display(self):
-        gl.display.blit(self.anims[self.anim][self.frame].image,
-                        self.get_position())
+        # Scale enemy sprite 2x
+        scaled_image = pygame.transform.scale2x(self.anims[self.anim][self.frame].image)
+        scaled_pos = XY(self.get_position().x * 2, self.get_position().y * 2)
+        gl.display.blit(scaled_image, scaled_pos)
 
 
 class Explosion(Entity):

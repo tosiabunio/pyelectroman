@@ -72,7 +72,7 @@ logic_time = 0   # logic processing time
 
 class XY:
     """Class to keep x, y positions."""
-    def __init__(self, x=0, y=0):
+    def __init__(self, x: object = 0, y: object = 0) -> None:
         if not isinstance(x, int):
             raise ValueError("x must be an int.")
         self.x = x
