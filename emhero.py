@@ -792,12 +792,14 @@ class Projectile(ga.Entity):
                     # Continue checking other enemies (multi-hit support)
 
             # Check if entity is shootable (destructible objects)
+            # Original C code (EB_HERO.C:180) only checks SHOT_MASK, not TOUCH_MASK
+            # Batteries are NOT shootable (only touchable), so they won't be hit
+            # Some entities (like certain animated hazards) can be both touchable AND shootable
             elif hasattr(entity, 'sprites') and entity.sprites:
                 sprite = entity.sprites[0]
                 is_shootable = sprite.flag('shootable')
-                is_touchable = sprite.flag('touchable')
 
-                if is_shootable and not is_touchable:
+                if is_shootable:
                     if self.collides_with(entity):
                         entity_name = entity.name() if hasattr(entity, 'name') else type(entity).__name__
                         logging.debug("Projectile hit shootable object: %s at %s (flags=0x%02X)",
