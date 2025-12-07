@@ -721,33 +721,31 @@ class EnemyPlatform(Entity):
         self.frames = 0
         self.frame = 0
         self.anim = "MLEFT"
-        self.health = 3  # Platform enemies have 3 health points
 
     def update(self):
         pass
 
     def take_damage(self, damage):
-        """Enemy takes damage from projectile"""
-        self.health -= damage
-        if self.health <= 0:
-            self.die()
+        """Enemy hit by projectile - instant kill (EB_ENEM.C:70-89)"""
+        # Original code has no health - enemies die in one hit
+        self.die()
 
     def die(self):
-        """Enemy destruction"""
-        # Spawn explosion at center of enemy (EB_ENEM.C:80-85)
+        """Enemy destruction - matches xplode() from EB_ENEM.C:70-89"""
+        # Spawn explosion at center of enemy
         bbox = self.get_bbox()
         pos = self.get_position()
         center_x = pos.x + bbox.x + bbox.w // 2 - 12
         center_y = pos.y + bbox.y + bbox.h // 2 - 12
         import logging
         from emhero import put_explosion
-        logging.debug("Enemy dying at pos %s, bbox[%d,%d,%d,%d], spawning explosion at (%d,%d)",
-                     pos, bbox.x, bbox.y, bbox.w, bbox.h, center_x, center_y)
+        logging.debug("Enemy destroyed at pos %s, explosion at (%d,%d)",
+                     pos, center_x, center_y)
         put_explosion(center_x, center_y)
 
-        # Remove enemy from screen
+        # Remove enemy from screen (matches remove_obj in original)
         self.vanish()
-        # TODO: PLAY_SAMPLE(explosion_sound)
+        # TODO: PLAY_SAMPLE(blast_s)
 
     def display(self):
         # Scale enemy sprite 2x
@@ -763,30 +761,28 @@ class EnemyFlying(Entity):
         self.frames = 0
         self.frame = 0
         self.anim = "MLEFT"
-        self.health = 3  # Flying enemies have 3 health points
 
     def take_damage(self, damage):
-        """Enemy takes damage from projectile"""
-        self.health -= damage
-        if self.health <= 0:
-            self.die()
+        """Enemy hit by projectile - instant kill (EB_ENEM.C:70-89)"""
+        # Original code has no health - enemies die in one hit
+        self.die()
 
     def die(self):
-        """Enemy destruction"""
-        # Spawn explosion at center of enemy (EB_ENEM.C:80-85)
+        """Enemy destruction - matches xplode() from EB_ENEM.C:70-89"""
+        # Spawn explosion at center of enemy
         bbox = self.get_bbox()
         pos = self.get_position()
         center_x = pos.x + bbox.x + bbox.w // 2 - 12
         center_y = pos.y + bbox.y + bbox.h // 2 - 12
         import logging
         from emhero import put_explosion
-        logging.debug("Enemy dying at pos %s, bbox[%d,%d,%d,%d], spawning explosion at (%d,%d)",
-                     pos, bbox.x, bbox.y, bbox.w, bbox.h, center_x, center_y)
+        logging.debug("Enemy destroyed at pos %s, explosion at (%d,%d)",
+                     pos, center_x, center_y)
         put_explosion(center_x, center_y)
 
-        # Remove enemy from screen
+        # Remove enemy from screen (matches remove_obj in original)
         self.vanish()
-        # TODO: PLAY_SAMPLE(explosion_sound)
+        # TODO: PLAY_SAMPLE(blast_s)
 
     def update(self):
         pass
