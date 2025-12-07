@@ -721,9 +721,33 @@ class EnemyPlatform(Entity):
         self.frames = 0
         self.frame = 0
         self.anim = "MLEFT"
+        self.health = 3  # Platform enemies have 3 health points
 
     def update(self):
         pass
+
+    def take_damage(self, damage):
+        """Enemy takes damage from projectile"""
+        self.health -= damage
+        if self.health <= 0:
+            self.die()
+
+    def die(self):
+        """Enemy destruction"""
+        # Spawn explosion at center of enemy (EB_ENEM.C:80-85)
+        bbox = self.get_bbox()
+        pos = self.get_position()
+        center_x = pos.x + bbox.x + bbox.w // 2 - 12
+        center_y = pos.y + bbox.y + bbox.h // 2 - 12
+        import logging
+        from emhero import put_explosion
+        logging.debug("Enemy dying at pos %s, bbox[%d,%d,%d,%d], spawning explosion at (%d,%d)",
+                     pos, bbox.x, bbox.y, bbox.w, bbox.h, center_x, center_y)
+        put_explosion(center_x, center_y)
+
+        # Remove enemy from screen
+        self.vanish()
+        # TODO: PLAY_SAMPLE(explosion_sound)
 
     def display(self):
         # Scale enemy sprite 2x
@@ -739,6 +763,30 @@ class EnemyFlying(Entity):
         self.frames = 0
         self.frame = 0
         self.anim = "MLEFT"
+        self.health = 3  # Flying enemies have 3 health points
+
+    def take_damage(self, damage):
+        """Enemy takes damage from projectile"""
+        self.health -= damage
+        if self.health <= 0:
+            self.die()
+
+    def die(self):
+        """Enemy destruction"""
+        # Spawn explosion at center of enemy (EB_ENEM.C:80-85)
+        bbox = self.get_bbox()
+        pos = self.get_position()
+        center_x = pos.x + bbox.x + bbox.w // 2 - 12
+        center_y = pos.y + bbox.y + bbox.h // 2 - 12
+        import logging
+        from emhero import put_explosion
+        logging.debug("Enemy dying at pos %s, bbox[%d,%d,%d,%d], spawning explosion at (%d,%d)",
+                     pos, bbox.x, bbox.y, bbox.w, bbox.h, center_x, center_y)
+        put_explosion(center_x, center_y)
+
+        # Remove enemy from screen
+        self.vanish()
+        # TODO: PLAY_SAMPLE(explosion_sound)
 
     def update(self):
         pass
@@ -769,6 +817,66 @@ class Explosion(Entity):
 
     def name(self):
         return "Explosion"
+
+
+class BrokenSprite(Entity):
+    """
+    Static broken sprite entity.
+    Shows the broken state of a destroyed object.
+    """
+    def __init__(self, sprites, position, frame_num):
+        Entity.__init__(self, sprites, position)
+        self.frame = frame_num if frame_num < len(sprites) else 0
+
+    def update(self):
+        """Static sprite - no update needed"""
+        pass
+
+    def display(self):
+        """Display the broken sprite at 2x scale"""
+        if self.frame < len(self.sprites):
+            scaled_image = pygame.transform.scale2x(self.sprites[self.frame].image)
+            scaled_pos = XY(self.get_position().x * 2, self.get_position().y * 2)
+            gl.display.blit(scaled_image, scaled_pos)
+
+    def name(self):
+        return "BrokenSprite"
+
+
+class ExplosionWithBroke(Entity):
+    """
+    Explosion animation that leaves a broken sprite behind.
+    Matches original explosion_with_broke_proc from EB_ENEM.I:3461-3483
+    """
+    def __init__(self, explosion_sprites, position, broken_entity):
+        Entity.__init__(self, explosion_sprites, position)
+        self.frame = 0
+        self.broken_entity = broken_entity
+        self.broken_sprite_spawned = False
+
+    def update(self):
+        """Cycle through explosion, advance broken sprite animation"""
+        # At frame 2, advance the broken entity's frame (EB_ENEM.I:3465-3469)
+        if self.frame == 2 and not self.broken_sprite_spawned:
+            # Increment frame of the broken sprite
+            if self.broken_entity and hasattr(self.broken_entity, 'frame'):
+                self.broken_entity.frame = min(self.broken_entity.frame + 1,
+                                               len(self.broken_entity.sprites) - 1)
+
+        self.frame += 1
+
+        # When explosion completes, spawn the broken sprite entity (EB_ENEM.I:3472-3481)
+        if self.frame >= len(self.sprites):
+            if not self.broken_sprite_spawned and self.broken_entity:
+                # Add broken sprite to screen at the entity's grid position
+                if gl.screen:
+                    gl.screen.active.append(self.broken_entity)
+                    self.broken_sprite_spawned = True
+            # Remove explosion
+            gl.screen.active.remove(self)
+
+    def name(self):
+        return "ExplosionWithBroke"
 
 
 # -----------------------------------------------------------------------------

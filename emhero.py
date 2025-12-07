@@ -691,7 +691,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
 
         if self.power:
             t = self.heat[self.power]
-            if self.temp + t <= 6:
+            if self.temp + t <= 5:  # Max temperature is 5 (EB_HERO.C:324)
                 self.temp += t
                 self.cooldown = 4
                 self.ammo -= 1
@@ -705,34 +705,239 @@ class PlayerEntity(ga.FSM, ga.Entity):
 
 #noinspection PyArgumentEqualDefault
 class Projectile(ga.Entity):
+    """
+    Projectile entity for weapon shots.
+
+    Behavior varies by weapon level (from EB_HERO.C:337-479):
+    - Level 1: short_miss_proc - limited range (removes after animation cycle)
+    - Level 2-3: long_miss_proc - infinite range, no penetration
+    - Level 4: long_miss_proc with AUX_2=1 - infinite range, PENETRATES enemies
+    - Level 5: bow_proc - double-height sprite, triple explosion on wall hit
+    """
+
     def __init__(self, type):
         ga.Entity.__init__(self, [da.EmptySprite()], XY(0, 0))
         self.type = type
         self.sprites = gl.weapons.weapon[type].anims
         self.frames = gl.weapons.weapon[type].frames
         self.step = 0
+        self.power_level = int(type[0])
+        self.animation_cycles = 0  # Track animation cycles for Level 1 range limit
+        self.hit_count = 0  # Track number of enemies hit this frame
 
     def update(self):
+        # Store previous frame for animation cycle detection
+        prev_frame = self.frame
+
+        # Animate projectile
         self.frame = (self.frame + 1) % len(self.sprites)
+
+        # Detect animation cycle completion (frame wrapped to 0)
+        if self.frame < prev_frame:
+            self.animation_cycles += 1
+            # Level 1: Limited range - remove after animation cycle (EB_HERO.C:245)
+            if self.power_level == 1:
+                logging.debug("Level 1 projectile removed after animation cycle")
+                self.vanish()
+                return
+
+        # Move projectile
         self.position.x += self.step
-        if self.position.x > gl.SCREEN_X * gl.SPRITE_X or self.position.x < - gl.SPRITE_X:
+
+        # Check screen boundaries
+        if self.position.x > gl.SCREEN_X * gl.SPRITE_X or self.position.x < -gl.SPRITE_X:
+            logging.debug("Projectile exited screen at x=%d", self.position.x)
+            # Level 5: Triple explosion on wall/screen exit (EB_HERO.C:214-216)
+            if self.power_level == 5:
+                self.bow_end_explosion()
+            self.vanish()
+            return
+
+        # Check collision with all enemies and shootable objects (EB_HERO.C:167-193)
+        # Original code checks ALL enemies in a loop, not just the first hit
+        self.hit_count = 0
+        should_remove = self.check_all_collisions()
+
+        if should_remove:
             self.vanish()
 
+    def check_all_collisions(self):
+        """
+        Check collision with all entities.
+        Returns True if projectile should be removed.
+
+        Based on miss_enem_test() from EB_HERO.C:167-193 which loops through
+        ALL enemies and can hit multiple in one frame.
+        """
+        screen = gl.screen_manager.get_screen()
+        if not screen:
+            return False
+
+        # Create a copy of the list to avoid issues if entities are removed during iteration
+        entities_to_check = list(screen.active)
+        hit_enemy_this_frame = False
+        hit_object = False
+
+        for entity in entities_to_check:
+            # Skip the projectile itself
+            if entity == self:
+                continue
+
+            # Check if entity is an enemy
+            if isinstance(entity, (ga.EnemyPlatform, ga.EnemyFlying)):
+                if self.collides_with(entity):
+                    logging.debug("Projectile hit enemy: %s at %s", type(entity).__name__, entity.get_position())
+                    self.hit_enemy(entity)
+                    hit_enemy_this_frame = True
+                    # Continue checking other enemies (multi-hit support)
+
+            # Check if entity is shootable (destructible objects)
+            elif hasattr(entity, 'sprites') and entity.sprites:
+                sprite = entity.sprites[0]
+                is_shootable = sprite.flag('shootable')
+                is_touchable = sprite.flag('touchable')
+
+                if is_shootable and not is_touchable:
+                    if self.collides_with(entity):
+                        entity_name = entity.name() if hasattr(entity, 'name') else type(entity).__name__
+                        logging.debug("Projectile hit shootable object: %s at %s (flags=0x%02X)",
+                                    entity_name, entity.get_position(), sprite.flags)
+                        self.hit_object(entity)
+                        hit_object = True
+                        # Objects always stop projectile
+                        break
+
+        # Determine if projectile should be removed
+        if hit_object:
+            return True  # Objects always stop projectile
+
+        if hit_enemy_this_frame:
+            # Level 4 penetrates enemies (AUX_2=1 in original code)
+            # EB_HERO.C:258: if (!AUX_2) REMOVE_OBJ;
+            if self.power_level == 4:
+                logging.debug("Level 4 projectile penetrating (not removed)")
+                return False  # Continue through enemies
+            else:
+                return True  # Remove on hit
+
+        return False  # No hit, continue
+
+    def collides_with(self, entity):
+        """Check if projectile collides with an entity using AABB."""
+        # Get relative bounding boxes and convert to absolute world coordinates
+        proj_rel_bbox = self.get_bbox()
+        entity_rel_bbox = entity.get_bbox()
+
+        # Create absolute bounding boxes by adding entity positions
+        proj_x = self.position.x + proj_rel_bbox.x
+        proj_y = self.position.y + proj_rel_bbox.y
+        proj_w = proj_rel_bbox.w
+        proj_h = proj_rel_bbox.h
+
+        # Level 5: Extended vertical collision box (EB_HERO.C:286, 464-465)
+        if self.power_level == 5:
+            # Original: os[UPB] = 6; os[DWB] = 24 + 18; (covers both sprites)
+            proj_h = gl.SPRITE_Y * 2 - 12  # Extended to cover both sprites (scaled)
+
+        entity_x = entity.position.x + entity_rel_bbox.x
+        entity_y = entity.position.y + entity_rel_bbox.y
+        entity_w = entity_rel_bbox.w
+        entity_h = entity_rel_bbox.h
+
+        # AABB collision detection
+        collision = (proj_x < entity_x + entity_w and
+                    proj_x + proj_w > entity_x and
+                    proj_y < entity_y + entity_h and
+                    proj_y + proj_h > entity_y)
+
+        return collision
+
+    def hit_enemy(self, enemy):
+        """Projectile hit an enemy."""
+        logging.debug("Projectile dealing %d damage to enemy", self.power_level)
+
+        # Enemy takes damage
+        enemy.take_damage(self.power_level)
+
+        # Spawn explosion at hit location
+        pos = self.get_position()
+        put_explosion(pos.x, pos.y)
+
+        self.hit_count += 1
+
+    def hit_object(self, obj):
+        """Projectile hit a shootable object (EB_HERO.C:528-534)."""
+        # Check if object has "breakable" flag (BROKE_MASK in C code)
+        is_breakable = obj.sprites[0].flag('destroyable')
+
+        if is_breakable:
+            logging.debug("Projectile hit BREAKABLE object - creating explosion with broken sprite")
+            # Calculate explosion position at center of hit object
+            bbox = obj.get_bbox()
+            obj_pos = obj.get_position()
+            exp_x = obj_pos.x + bbox.x + bbox.w // 2 - 12
+            exp_y = obj_pos.y + bbox.y + bbox.h // 2 - 12
+
+            # Get explosion sprites
+            explosion_sprites = gl.weapons.weapon["EXPLOSION"].anims
+
+            # Calculate grid position for broken sprite (EB_ENEM.I:3511-3512)
+            grid_x = obj.get_position().x // gl.SPRITE_X
+            grid_y = obj.get_position().y // gl.SPRITE_Y
+            broken_pos = XY(grid_x * gl.SPRITE_X, grid_y * gl.SPRITE_Y)
+
+            # Create broken sprite entity showing next animation frame
+            current_frame = obj.frame if hasattr(obj, 'frame') else 0
+            broken_entity = ga.BrokenSprite(obj.sprites, broken_pos, current_frame + 1)
+
+            logging.debug("Creating broken sprite at grid pos (%d,%d), frame %d", grid_x, grid_y, current_frame + 1)
+
+            # Create explosion with broken sprite
+            explosion = ga.ExplosionWithBroke(explosion_sprites, XY(exp_x, exp_y), broken_entity)
+
+            if gl.screen:
+                gl.screen.active.append(explosion)
+            obj.vanish()
+        else:
+            logging.debug("Projectile hit non-breakable shootable object - explosion only")
+            pos = self.get_position()
+            put_explosion(pos.x, pos.y)
+
+    def bow_end_explosion(self):
+        """
+        Create triple explosion for Level 5 bow on wall hit.
+        From EB_HERO.C:214-216 (bow_end_proc):
+            put_explosion(X-b,   Y);
+            put_explosion(X+b*8, Y+12);
+            put_explosion(X+b,   Y+24);
+        """
+        pos = self.get_position()
+        direction = 1 if self.step > 0 else -1
+
+        # Three vertically-spread explosions (scaled 2x)
+        put_explosion(pos.x - direction * 2, pos.y)
+        put_explosion(pos.x + direction * 16, pos.y + 24)
+        put_explosion(pos.x + direction * 2, pos.y + 48)
+
+        logging.debug("Bow triple explosion at x=%d", pos.x)
+
     def display(self):
-        if self.type[0] != "5":
+        if self.power_level != 5:
             ga.Entity.display(self)
         else:
             # Power level 5 projectiles are 2 sprites tall (scaled 2x)
-            sprite = self.sprites[0]
+            sprite = self.sprites[self.frame % len(self.sprites)]
             pos = self.get_position()
             scaled_image = pygame.transform.scale2x(sprite.image)
             scaled_pos = XY(pos.x * 2, pos.y * 2)
             gl.display.blit(scaled_image, scaled_pos)
-            sprite = self.sprites[1]
-            pos2 = pos + XY(0, gl.SPRITE_Y)
-            scaled_image = pygame.transform.scale2x(sprite.image)
-            scaled_pos = XY(pos2.x * 2, pos2.y * 2)
-            gl.display.blit(scaled_image, scaled_pos)
+            # Second sprite below
+            if len(self.sprites) > 1:
+                sprite2 = self.sprites[(self.frame + 1) % len(self.sprites)]
+                pos2 = pos + XY(0, gl.SPRITE_Y)
+                scaled_image2 = pygame.transform.scale2x(sprite2.image)
+                scaled_pos2 = XY(pos2.x * 2, pos2.y * 2)
+                gl.display.blit(scaled_image2, scaled_pos2)
 
 # -----------------------------------------------------------------------------
 # test code below
