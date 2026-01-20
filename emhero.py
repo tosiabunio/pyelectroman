@@ -885,23 +885,23 @@ class Projectile(ga.Entity):
 
         if is_breakable:
             logging.debug("  Creating explosion with broken sprite")
-            # Calculate explosion position at center of hit object
-            bbox = obj.get_bbox()
+            # Explosion position is at object position (C code: NEW_X = ob->x, NEW_Y = ob->y)
             obj_pos = obj.get_position()
-            exp_x = obj_pos.x + bbox.x + bbox.w // 2 - 12
-            exp_y = obj_pos.y + bbox.y + bbox.h // 2 - 12
+            exp_x = obj_pos.x
+            exp_y = obj_pos.y
 
             # Get explosion sprites
             explosion_sprites = gl.weapons.weapon["EXPLOSION"].anims
 
             # Calculate grid position for broken sprite (EB_ENEM.I:3511-3512)
-            grid_x = obj.get_position().x // gl.SPRITE_X
-            grid_y = obj.get_position().y // gl.SPRITE_Y
+            grid_x = obj_pos.x // gl.SPRITE_X
+            grid_y = obj_pos.y // gl.SPRITE_Y
             broken_pos = XY(grid_x * gl.SPRITE_X, grid_y * gl.SPRITE_Y)
 
             # Get broken sprite from level data (C code: AUX_1++ increments shape_num)
             # The broken sprite is the NEXT sprite in the level's sprite set
             broken_sprite = None
+            broken_sidx = None
             if hasattr(obj, 'sprite_index') and obj.sprite_index is not None:
                 # Calculate broken sprite index: original + animation length
                 broken_sidx = obj.sprite_index + len(obj.sprites)
@@ -924,21 +924,29 @@ class Projectile(ga.Entity):
                 logging.debug("  BrokenSprite fallback: frame %d, num_sprites=%d",
                              current_frame + 1, len(obj.sprites))
 
-            # Create explosion with broken sprite
-            explosion = ga.ExplosionWithBroke(explosion_sprites, XY(exp_x, exp_y), broken_entity)
+            # In C code, the broken sprite is displayed IMMEDIATELY during explosion
+            # (PUT_SPRITE in explosion_with_broke_proc), not after explosion finishes.
+            # Add broken sprite to screen and level data NOW, then show explosion on top.
+            obj.vanish()  # Remove original object first
 
             if gl.screen:
+                # Add broken sprite immediately (it will be drawn before the explosion)
+                gl.screen.active.append(broken_entity)
+            # Persist to level data so it survives screen changes
+            screen_num = gl.screen_manager.get_screen_number()
+            gl.screen_manager.add_to_level_data(screen_num, broken_entity)
+
+            # Create explosion (will be drawn on top of broken sprite)
+            explosion = ga.Explosion(explosion_sprites, XY(exp_x, exp_y))
+            if gl.screen:
                 gl.screen.active.append(explosion)
-            obj.vanish()
         else:
             # Non-breakable: explosion only, no broken sprite left behind
             # But object is STILL removed (xplode in C code removes the object)
+            # Explosion at object position (C code: NEW_X = ob->x, NEW_Y = ob->y)
             logging.debug("  Non-breakable - explosion only, removing object")
-            bbox = obj.get_bbox()
             obj_pos = obj.get_position()
-            exp_x = obj_pos.x + bbox.x + bbox.w // 2 - 12
-            exp_y = obj_pos.y + bbox.y + bbox.h // 2 - 12
-            put_explosion(exp_x, exp_y)
+            put_explosion(obj_pos.x, obj_pos.y)
             obj.vanish()  # Remove the object!
 
     def bow_end_explosion(self):

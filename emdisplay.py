@@ -86,7 +86,7 @@ class InfoLines:
             self.lines.pop(0)
             self.update = time.perf_counter()
 
-info_lines = InfoLines(XY(180 * 2, 8), 4, 5) #default info lines buffer (scaled 2x)
+info_lines = InfoLines(XY(180 * 2, 8), 3, 5) #default info lines buffer (scaled 2x)
 
 class DiskInfo:
     def __init__(self, position):
