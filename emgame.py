@@ -90,6 +90,8 @@ class Entity:
         self.delay = 0
         self.deferred = None
         self.origin = None
+        # Original sprite index in level data (for broken sprite lookup)
+        self.sprite_index = None
 
     def set_origin(self, screen):
         self.origin = screen
@@ -139,8 +141,13 @@ class Entity:
 
     def vanish(self):
         """Remove itself from its original screen"""
+        logging.debug("vanish() called for %s at %s", self.name(), self.position)
         # remove from the current screen first
-        gl.screen_manager.get_screen().active.remove(self)
+        try:
+            gl.screen_manager.get_screen().active.remove(self)
+            logging.debug("  Removed from current screen.active")
+        except ValueError:
+            logging.debug("  NOT in current screen.active")
         # remove from the level definition
         gl.screen_manager.delete_object(gl.screen_manager.get_screen_number(),
                                         self.position)
@@ -382,14 +389,32 @@ class ScreenManager:
                 self.screen.background = copy.copy(cs.background)
                 self.screen.collisions = copy.copy(cs.collisions)
                 self.screen.active = copy.copy(cs.active)
+                logging.debug("change_screen(%d): Loaded %d active entities from level data",
+                             screen_number, len(cs.active))
             else:
                 self.screen = None
 
     def delete_object(self, screen, position):
         cs = self.screens[screen]
+        found = False
         for obj in cs.active:
             if obj.position == position:
                 cs.active.remove(obj)
+                logging.debug("delete_object: Removed %s at %s from screen %d level data",
+                             obj.name(), position, screen)
+                found = True
+                break
+        if not found:
+            logging.debug("delete_object: No object found at %s in screen %d level data",
+                         position, screen)
+
+    def add_to_level_data(self, screen, entity):
+        """Add an entity to the level definition so it persists across screen changes."""
+        cs = self.screens[screen]
+        if cs:
+            cs.active.append(entity)
+            logging.debug("add_to_level_data: Added %s at %s to screen %d",
+                         entity.name(), entity.position, screen)
 
     def add_active(self, object):
         """
@@ -851,25 +876,29 @@ class ExplosionWithBroke(Entity):
         self.broken_sprite_spawned = False
 
     def update(self):
-        """Cycle through explosion, advance broken sprite animation"""
-        # At frame 2, advance the broken entity's frame (EB_ENEM.I:3465-3469)
-        if self.frame == 2 and not self.broken_sprite_spawned:
-            # Increment frame of the broken sprite
-            if self.broken_entity and hasattr(self.broken_entity, 'frame'):
-                self.broken_entity.frame = min(self.broken_entity.frame + 1,
-                                               len(self.broken_entity.sprites) - 1)
-
+        """Cycle through explosion animation"""
+        # Note: In the original C code, AUX_1++ at frame 2 advances to the next
+        # shape_num (broken sprite). We now handle this in hit_object() by
+        # getting the broken sprite directly from level data at sprite_index + len(sprites).
         self.frame += 1
 
         # When explosion completes, spawn the broken sprite entity (EB_ENEM.I:3472-3481)
         if self.frame >= len(self.sprites):
             if not self.broken_sprite_spawned and self.broken_entity:
-                # Add broken sprite to screen at the entity's grid position
+                # Add broken sprite to current screen
                 if gl.screen:
                     gl.screen.active.append(self.broken_entity)
-                    self.broken_sprite_spawned = True
-            # Remove explosion
-            gl.screen.active.remove(self)
+                    logging.debug("ExplosionWithBroke: Added BrokenSprite to current screen at %s",
+                                 self.broken_entity.position)
+                # ALSO add to level data so it persists across screen changes
+                screen_num = gl.screen_manager.get_screen_number()
+                gl.screen_manager.add_to_level_data(screen_num, self.broken_entity)
+                self.broken_sprite_spawned = True
+            # Remove explosion from current screen (not from level data - it was never there)
+            try:
+                gl.screen.active.remove(self)
+            except ValueError:
+                logging.debug("ExplosionWithBroke: Already removed from screen")
 
     def name(self):
         return "ExplosionWithBroke"

@@ -792,11 +792,15 @@ class Projectile(ga.Entity):
                     # Continue checking other enemies (multi-hit support)
 
             # Check if entity is shootable (destructible objects)
-            # Original C code (EB_HERO.C:180) only checks SHOT_MASK, not TOUCH_MASK
+            # Original C code (EB_HERO.C:178-180) checks the CURRENT animation frame's
+            # SHOT_MASK, not frame 0. The sprite index is calculated as:
+            # st = STAT_BUFF + 8 * (FIRST_SHAPE + SHAPE_CNTR)
             # Batteries are NOT shootable (only touchable), so they won't be hit
-            # Some entities (like certain animated hazards) can be both touchable AND shootable
             elif hasattr(entity, 'sprites') and entity.sprites:
-                sprite = entity.sprites[0]
+                # Use current animation frame, not frame 0 (EB_HERO.C:178)
+                current_frame = getattr(entity, 'frame', 0)
+                current_frame = min(current_frame, len(entity.sprites) - 1)
+                sprite = entity.sprites[current_frame]
                 is_shootable = sprite.flag('shootable')
 
                 if is_shootable:
@@ -870,10 +874,17 @@ class Projectile(ga.Entity):
     def hit_object(self, obj):
         """Projectile hit a shootable object (EB_HERO.C:528-534)."""
         # Check if object has "breakable" flag (BROKE_MASK in C code)
-        is_breakable = obj.sprites[0].flag('destroyable')
+        # Must use current animation frame, same as shootable check (EB_HERO.C:178)
+        current_frame = getattr(obj, 'frame', 0)
+        current_frame = min(current_frame, len(obj.sprites) - 1)
+        is_breakable = obj.sprites[current_frame].flag('destroyable')
+
+        logging.debug("hit_object: %s at %s, frame=%d, destroyable=%s, sprite_index=%s",
+                     obj.name(), obj.get_position(), current_frame, is_breakable,
+                     getattr(obj, 'sprite_index', None))
 
         if is_breakable:
-            logging.debug("Projectile hit BREAKABLE object - creating explosion with broken sprite")
+            logging.debug("  Creating explosion with broken sprite")
             # Calculate explosion position at center of hit object
             bbox = obj.get_bbox()
             obj_pos = obj.get_position()
@@ -888,11 +899,30 @@ class Projectile(ga.Entity):
             grid_y = obj.get_position().y // gl.SPRITE_Y
             broken_pos = XY(grid_x * gl.SPRITE_X, grid_y * gl.SPRITE_Y)
 
-            # Create broken sprite entity showing next animation frame
-            current_frame = obj.frame if hasattr(obj, 'frame') else 0
-            broken_entity = ga.BrokenSprite(obj.sprites, broken_pos, current_frame + 1)
+            # Get broken sprite from level data (C code: AUX_1++ increments shape_num)
+            # The broken sprite is the NEXT sprite in the level's sprite set
+            broken_sprite = None
+            if hasattr(obj, 'sprite_index') and obj.sprite_index is not None:
+                # Calculate broken sprite index: original + animation length
+                broken_sidx = obj.sprite_index + len(obj.sprites)
+                try:
+                    broken_sprite = gl.level.get_sprite(broken_sidx)
+                    logging.debug("  Broken sprite from level: sidx=%d -> %d",
+                                 obj.sprite_index, broken_sidx)
+                except (IndexError, AssertionError):
+                    logging.debug("  Broken sprite index %d out of range", broken_sidx)
+                    broken_sprite = None
 
-            logging.debug("Creating broken sprite at grid pos (%d,%d), frame %d", grid_x, grid_y, current_frame + 1)
+            if broken_sprite:
+                # Use the broken sprite from level data
+                broken_entity = ga.BrokenSprite([broken_sprite], broken_pos, 0)
+                logging.debug("  BrokenSprite using level sprite at index %d", broken_sidx)
+            else:
+                # Fallback: use next frame of current animation (may be same sprite)
+                current_frame = obj.frame if hasattr(obj, 'frame') else 0
+                broken_entity = ga.BrokenSprite(obj.sprites, broken_pos, current_frame + 1)
+                logging.debug("  BrokenSprite fallback: frame %d, num_sprites=%d",
+                             current_frame + 1, len(obj.sprites))
 
             # Create explosion with broken sprite
             explosion = ga.ExplosionWithBroke(explosion_sprites, XY(exp_x, exp_y), broken_entity)
@@ -901,9 +931,15 @@ class Projectile(ga.Entity):
                 gl.screen.active.append(explosion)
             obj.vanish()
         else:
-            logging.debug("Projectile hit non-breakable shootable object - explosion only")
-            pos = self.get_position()
-            put_explosion(pos.x, pos.y)
+            # Non-breakable: explosion only, no broken sprite left behind
+            # But object is STILL removed (xplode in C code removes the object)
+            logging.debug("  Non-breakable - explosion only, removing object")
+            bbox = obj.get_bbox()
+            obj_pos = obj.get_position()
+            exp_x = obj_pos.x + bbox.x + bbox.w // 2 - 12
+            exp_y = obj_pos.y + bbox.y + bbox.h // 2 - 12
+            put_explosion(exp_x, exp_y)
+            obj.vanish()  # Remove the object!
 
     def bow_end_explosion(self):
         """

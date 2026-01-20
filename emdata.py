@@ -361,16 +361,19 @@ class Level(LevelData):
         position = XY(x * gl.SPRITE_X, y * gl.SPRITE_Y)
         if (flags == 0x80) & (action == 0):
             entity = ga.Entity([sprite], position)
+            entity.sprite_index = sidx  # Store for broken sprite lookup
             screen.collisions.append(entity)
         elif flags & 0x80:
             entity = self.__get_active_entity(sidx, position)
             if isinstance(entity, tuple):
                 # tuple is returned if initialized object has additional one
                 entity[0].set_origin(screen)  # remember screen for deletion
+                entity[0].sprite_index = sidx  # Store for broken sprite lookup
                 screen.active.append(entity[0])
                 # process additional object
                 entity = self.__get_active_entity(entity[1], entity[2])
             entity.set_origin(screen)  # remember screen for deletion
+            entity.sprite_index = sidx  # Store for broken sprite lookup
             screen.active.append(entity)
             if isinstance(entity, ga.Checkpoint) and param == 1:
                 # active checkpoint - level start (only update if different)
@@ -381,6 +384,7 @@ class Level(LevelData):
                     gl.checkpoint.update(level_number, screen_number, position)
         else:
             entity = ga.Entity([sprite], position)
+            entity.sprite_index = sidx  # Store for broken sprite lookup
             screen.background.append(entity)
 
 

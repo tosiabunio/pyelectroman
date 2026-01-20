@@ -343,12 +343,14 @@ class Game:
     """
     def __init__(self):
         if gl.log_filename:
-            logging.basicConfig(level=logging.DEBUG)
-        else:
+            # Log to file when filename is set
             logging.basicConfig(filename=gl.log_filename,
                                 filemode="w", format=(
                                 '%(levelname)s: %(funcName)s(): %(message)s'),
                                 level=logging.DEBUG)
+        else:
+            # Log to console when no filename
+            logging.basicConfig(level=logging.DEBUG)
 
     def init(self):
         di.init_display()
