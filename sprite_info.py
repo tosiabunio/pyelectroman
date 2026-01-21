@@ -34,7 +34,7 @@ class SpriteData():
 def load_data(filename):
     global sprites
     global areas
-    set_path = os.path.join(r"E:\pyelectroman-git\data", filename)
+    set_path = os.path.join("data", filename)
     params_path = os.path.join(set_path, filename + ".ebs")
     f = open(params_path, "rt")
     data = json.load(f)
@@ -124,14 +124,14 @@ procs = ["",  #0 unused
          "exit(%d, %s)",  #15
          "enemy(%d, %s)",  #16
          "cannonleft(%d, %s)",  #17
-         "cannoright(%d, %s)",  #18
+         "cannonright(%d, %s)",  #18
          "cannonup(%d, %s)",  #19
          "cannondown(%d, %s)",  #20
          "flashspecial(%d, %s)"]  #21
 
 
-frame_cycles = ["diag", "x", "y", "const", "rand", "rand x const",
-                "rand y const", "rand start"]
+frame_cycles = ["diag", "x", "y", "zero", "rand", "rand_x",
+                "rand_y", "rand_frame"]
 
 touch_procs = ["none", "battery", "teleport", "checkpoint", "killer", "floppy",
                "exit", "special good", "special bad"]
