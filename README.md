@@ -24,6 +24,10 @@ With the advent of AI-assisted development, the project has been revived as a te
 
 🚧 Work in progress — not intended as a playable release at this time.
 
+## Useful debug info
+
+[PyElectroMan Debug Shortcuts](DEBUG_SHORTCUTS.md)
+
 ## License
 
 - **Code**: [MIT License](LICENSE)
