@@ -444,6 +444,35 @@ class Level(LevelData):
             anim.append(self.get_sprite(sidx))
         return anim
 
+    def reset_screens(self):
+        """
+        Recreate all screens from the stored level data.
+        Matches C code: memcpy(map, level_map, sizeof(map)) in init_level() (EB.C:1390)
+        This restores destroyed objects, killed enemies, and collected items.
+        Sprite sets are already loaded, so only screens need recreation.
+        """
+        self.screens = []
+        cntr = 0
+        for s in range(256):
+            gl.init_screen_randoms(s)
+            layers = self.data["screens"][s]
+            if layers:
+                screen = Screen()
+                for lay in range(4):
+                    layer = layers[lay]
+                    if layer:
+                        for y in range(gl.SCREEN_Y):
+                            for x in range(gl.SCREEN_X):
+                                sidx = layer[y * gl.SCREEN_X + x]
+                                if sidx != 0:
+                                    self.process(screen, sidx, x, y, s)
+                self.screens.append(screen)
+                cntr += 1
+            else:
+                self.screens.append(None)
+        logging.info("Level '%s' reset: %d screens recreated", self.name, cntr)
+        return self.screens
+
 # -----------------------------------------------------------------------------
 # test code below
 

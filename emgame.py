@@ -431,6 +431,30 @@ class ScreenManager:
             self.screen.active.extend(self.new_objects)
             self.new_objects = []
 
+    def reset_level(self):
+        """
+        Reset level to pristine state on player death.
+        Matches C code init_level() (EB.C:1382-1405):
+        - memcpy(map, level_map, sizeof(map)) - restore all screens
+        - Remove already collected disks from restored screens
+        """
+        # Recreate all screens from level data (EB.C:1390)
+        self.screens = gl.level.reset_screens()
+
+        # Remove collected disks from the restored level (EB.C:1391-1395)
+        # In C: for (i = 0; i < disk_num; i++) MAP_REMOVE(disk_x[i], disk_y[i])
+        for screen_num, position in gl.disk_positions:
+            cs = self.screens[screen_num]
+            if cs:
+                for obj in cs.active[:]:  # iterate over copy to allow removal
+                    if obj.position == position:
+                        cs.active.remove(obj)
+                        logging.debug("reset_level: Removed collected disk at %s from screen %d",
+                                     position, screen_num)
+                        break
+
+        logging.info("reset_level: Level reset, %d collected disks preserved", len(gl.disk_positions))
+
 class ActiveCheckpoint:
     """
     Active checkpoint class.

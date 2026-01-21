@@ -519,6 +519,10 @@ class PlayerEntity(ga.FSM, ga.Entity):
                 elif touch_type == 5:
                     # floppy - collect disk
                     gl.disks += 1
+                    # Track disk position for level reset (EB.C:1391-1395)
+                    # disk_x[disk_num], disk_y[disk_num], disk_c[disk_num]
+                    screen_num = gl.screen_manager.get_screen_number()
+                    gl.disk_positions.append((screen_num, obj.position.copy()))
                     obj.vanish()  # remove floppy from the map
                     di.info_lines.add("Disk collected (%d/3)" % gl.disks)
                     # TODO: PLAY_SAMPLE(disk_s) - sound effect
@@ -603,8 +607,14 @@ class PlayerEntity(ga.FSM, ga.Entity):
     def respawn(self):
         """
         Respawn player at checkpoint after death.
-        Matches original init_level() - unlimited retries.
+        Matches original init_level() (EB.C:1382-1405) - unlimited retries.
+        Resets level to pristine state (restores destroyed objects, enemies).
         """
+        # Reset level to pristine state (EB.C:1390)
+        # This restores all destroyed objects and killed enemies
+        # Collected disks are preserved via gl.disk_positions
+        gl.screen_manager.reset_level()
+
         # Get checkpoint position and screen
         checkpoint_screen = gl.checkpoint.get_screen()
         checkpoint_pos = gl.checkpoint.get_position()
@@ -615,11 +625,14 @@ class PlayerEntity(ga.FSM, ga.Entity):
             checkpoint_screen = 0
             checkpoint_pos = XY(0, 0)
 
-        # Change to checkpoint screen
-        if checkpoint_screen != gl.screen_manager.get_screen_number():
-            gl.screen_manager.change_screen(checkpoint_screen)
-            # Update global screen reference immediately
-            gl.screen = gl.screen_manager.get_screen()
+        # Reset weapon power (EB.C:1389: gun_power = gun_temp = gun_temp_cntr = 0)
+        self.power = 0
+        self.ammo = 0
+
+        # Change to checkpoint screen (EB.C:1396-1397)
+        gl.screen_manager.change_screen(checkpoint_screen)
+        # Update global screen reference immediately
+        gl.screen = gl.screen_manager.get_screen()
 
         # Position player at checkpoint using stand() method (same as level load)
         respawn_pos = checkpoint_pos + XY(gl.SPRITE_X // 2, gl.SPRITE_Y)
@@ -629,6 +642,9 @@ class PlayerEntity(ga.FSM, ga.Entity):
         self.temperature = 0
         self.death_timer = 0
         self.touched = []  # Clear touched objects to prevent immediate re-death
+
+        # Reset killing floor flag (level is reset, so floor collisions are back)
+        gl.killing_floor = False
 
         # Recalculate to_ground before state switch
         self.to_ground = self.check_ground(gl.screen)

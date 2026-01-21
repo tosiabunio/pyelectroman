@@ -54,6 +54,7 @@ screen = None  # current screen definition
 info = None  # data class for info sprites
 counter = 0 # +1 every loop
 disks = 0 # number of disks collected
+disk_positions = [] # list of (screen, position) for collected disks (EB.C:1391-1395)
 exit_level_flag = False # set when player exits level
 next_level_code = 0 # next level to load (from exit sprite param)
 killing_floor = False # set when KillingFloor entity activates

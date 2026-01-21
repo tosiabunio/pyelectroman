@@ -249,8 +249,13 @@ class Gameplay:
         self.screens_map = self.init_map
         start_screen = gl.checkpoint.get_screen()
         start_position = gl.checkpoint.get_position()
-        gl.disks = 0 # no disks collected after level load
+        gl.disks = 0 # no disks collected after level load (EB.C:1461)
+        gl.disk_positions = [] # clear collected disk positions (EB.C:1462-1464)
         gl.killing_floor = False # reset killing floor flag on level load
+        # Reset weapon power on level load (EB.C:1389)
+        gl.player.power = 0
+        gl.player.ammo = 0
+        gl.player.temperature = 0
         if start_position:
             start_position += XY(gl.SPRITE_X // 2, gl.SPRITE_Y)
             gl.screen_manager.change_screen(start_screen)
