@@ -286,23 +286,37 @@ class Level(LevelData):
         return entity
 
     def __init_cannonleft(self, sidx, position):
-        sprite = self.get_sprite(sidx)
-        entity = ga.CannonLeft([sprite], position)
+        # Load cannon animation and get projectile sprite (last in sequence)
+        ends = self.get_anim_ends(sidx)
+        sprites = self.get_anim(ends)
+        entity = ga.CannonLeft(sprites, position)
+        entity.frame = sidx - ends[0]  # Current frame within animation
+        # Projectile sprite is the LAST sprite in animation (EB_ENEM.C:656-657)
+        entity.projectile_sprite = sprites[-1] if sprites else None
         return entity
 
     def __init_cannonright(self, sidx, position):
-        sprite = self.get_sprite(sidx)
-        entity = ga.CannonRight([sprite], position)
+        ends = self.get_anim_ends(sidx)
+        sprites = self.get_anim(ends)
+        entity = ga.CannonRight(sprites, position)
+        entity.frame = sidx - ends[0]
+        entity.projectile_sprite = sprites[-1] if sprites else None
         return entity
 
     def __init_cannonup(self, sidx, position):
-        sprite = self.get_sprite(sidx)
-        entity = ga.CannonUp([sprite], position)
+        ends = self.get_anim_ends(sidx)
+        sprites = self.get_anim(ends)
+        entity = ga.CannonUp(sprites, position)
+        entity.frame = sidx - ends[0]
+        entity.projectile_sprite = sprites[-1] if sprites else None
         return entity
 
     def __init_cannondown(self, sidx, position):
-        sprite = self.get_sprite(sidx)
-        entity = ga.CannonDown([sprite], position)
+        ends = self.get_anim_ends(sidx)
+        sprites = self.get_anim(ends)
+        entity = ga.CannonDown(sprites, position)
+        entity.frame = sidx - ends[0]
+        entity.projectile_sprite = sprites[-1] if sprites else None
         return entity
 
     def __init_enemy(self, sidx, position):

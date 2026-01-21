@@ -52,6 +52,14 @@ class Enemies:
         return (self.enemy[enemy_num].anims,
                 self.enemy[enemy_num].frames)
 
+    def get_projectile_sprites(self):
+        """Get projectile sprites for enemy/cannon shots"""
+        # Use sprites 25-27 from enemy set if available, otherwise empty
+        try:
+            return self.data.get_anim((25, 27))
+        except (IndexError, AssertionError):
+            return []
+
 
 class WeaponData:
     def __init__(self, anims):

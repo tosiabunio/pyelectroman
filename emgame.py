@@ -622,18 +622,165 @@ class FlashSpecial(Entity):
 
 
 class RocketUp(Entity):
+    """
+    Rocket that fires upward when player passes below.
+    Based on EB_ENEM.C:400-484 (rocket_proc).
+    """
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
+        self.state = "waiting"
+        self.speed = 0
+        self.initialized = False
+
+    def update(self):
+        if not self.initialized:
+            # Get speed from sprite param
+            sprite = self.sprites[0] if self.sprites else None
+            self.speed = sprite.param if sprite and sprite.param > 0 else 4
+            self.initialized = True
+
+        if self.state == "waiting":
+            self.check_trigger()
+        else:
+            self.fly()
+
+    def check_trigger(self):
+        """Fire when player is aligned below - EB_ENEM.C:422-441"""
+        if not gl.player:
+            return
+
+        player_pos = gl.player.get_position()
+        my_pos = self.get_position()
+        bbox = self.get_bbox()
+
+        # Player center X
+        player_cx = player_pos.x + 24  # Approximate player center
+        player_top = player_pos.y
+
+        # Check horizontal alignment (XB-8 to XE+8)
+        xb = my_pos.x + bbox.x - 8
+        xe = my_pos.x + bbox.x + bbox.width + 8
+        my_bottom = my_pos.y + bbox.y + bbox.height
+
+        # Player must be BELOW rocket (player top > rocket bottom)
+        if xb < player_cx < xe and player_top > my_bottom:
+            # 1/8 chance per frame to fire (EB_ENEM.C:436)
+            if gl.random(8) == 0:
+                self.state = "flying"
+                logging.debug("RocketUp triggered at %s", my_pos)
+
+    def fly(self):
+        """Move upward until collision - EB_ENEM.C:442-448"""
+        self.position.y -= self.speed
+
+        # Animate
+        self.frame = (self.frame + 1) % len(self.sprites) if self.sprites else 0
+
+        # Wall collision
+        screen = gl.screen_manager.get_screen()
+        if screen and self.check_collision(XY(0, -self.speed), screen):
+            from emhero import put_explosion
+            put_explosion(self.position.x, self.position.y)
+            self.vanish()
+            return
+
+        # Off-screen
+        if self.position.y < -gl.SPRITE_Y:
+            self.vanish()
 
 
 class RocketDown(Entity):
+    """
+    Rocket that fires downward when player passes above.
+    Based on EB_ENEM.C:400-484 (rocket_proc).
+    """
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
+        self.state = "waiting"
+        self.speed = 0
+        self.initialized = False
+
+    def update(self):
+        if not self.initialized:
+            # Get speed from sprite param
+            sprite = self.sprites[0] if self.sprites else None
+            self.speed = sprite.param if sprite and sprite.param > 0 else 4
+            self.initialized = True
+
+        if self.state == "waiting":
+            self.check_trigger()
+        else:
+            self.fly()
+
+    def check_trigger(self):
+        """Fire when player is aligned above - EB_ENEM.C:422-441"""
+        if not gl.player:
+            return
+
+        player_pos = gl.player.get_position()
+        my_pos = self.get_position()
+        bbox = self.get_bbox()
+
+        # Player center X
+        player_cx = player_pos.x + 24  # Approximate player center
+        player_bottom = player_pos.y + 96  # Approximate player bottom (2 sprites tall)
+
+        # Check horizontal alignment (XB-8 to XE+8)
+        xb = my_pos.x + bbox.x - 8
+        xe = my_pos.x + bbox.x + bbox.width + 8
+        my_top = my_pos.y + bbox.y
+
+        # Player must be ABOVE rocket (player bottom < rocket top)
+        if xb < player_cx < xe and player_bottom < my_top:
+            # 1/8 chance per frame to fire (EB_ENEM.C:436)
+            if gl.random(8) == 0:
+                self.state = "flying"
+                logging.debug("RocketDown triggered at %s", my_pos)
+
+    def fly(self):
+        """Move downward until collision"""
+        self.position.y += self.speed
+
+        # Animate
+        self.frame = (self.frame + 1) % len(self.sprites) if self.sprites else 0
+
+        # Wall collision
+        screen = gl.screen_manager.get_screen()
+        if screen and self.check_collision(XY(0, self.speed), screen):
+            from emhero import put_explosion
+            put_explosion(self.position.x, self.position.y)
+            self.vanish()
+            return
+
+        # Off-screen
+        if self.position.y > gl.SCREEN_Y * gl.SPRITE_Y:
+            self.vanish()
 
 
 class KillingFloor(Entity):
+    """
+    One-time trigger that removes bottom row collisions.
+    Based on EB_ENEM.C:486-492.
+    When activated, player will die if they fall to the bottom of the screen.
+    """
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
+        self.activated = False
+
+    def update(self):
+        if not self.activated:
+            self.activated = True
+            gl.killing_floor = True
+
+            # Remove bottom row collisions (EB_ENEM.C:491)
+            screen = gl.screen_manager.get_screen()
+            if screen:
+                bottom_y = (gl.SCREEN_Y - 1) * gl.SPRITE_Y
+                # Filter out collision objects at the bottom row
+                screen.collisions = [c for c in screen.collisions
+                                     if c.get_y() < bottom_y]
+            logging.debug("KillingFloor activated - bottom collisions removed")
+            self.vanish()
 
 
 class Monitor(Entity):
@@ -718,27 +865,103 @@ class ExitIndicator(Entity):
             Entity.display(self)
 
 
-class CannonLeft(Entity):
-    def __init__(self, sprites, position):
+class CannonBase(Entity):
+    """
+    Base class for cannons - matches cannon_proc (EB_ENEM.C:645-679)
+    Fires projectiles at regular intervals with randomization.
+    """
+    def __init__(self, sprites, position, direction):
         Entity.__init__(self, sprites, position)
+        self.direction = direction  # XY for projectile direction
+        self.fire_timer = 0
+        self.fire_interval = 0
+        self.projectile_speed = 8  # Default, overridden by sprite param
+        self.projectile_sprite = None  # Set by emdata.py - last sprite in animation
+        self.initialized = False
+
+    def update(self):
+        if not self.initialized:
+            # Get timing and speed from sprite param (EB_ENEM.C:690-691)
+            # PARAMB is used for BOTH firing interval AND projectile speed
+            sprite = self.sprites[0] if self.sprites else None
+            param = sprite.param if sprite and sprite.param > 0 else 8
+            self.fire_interval = param
+            self.projectile_speed = param  # Speed = param (EB_ENEM.C:668-671)
+            # Initial random delay: random(param) - EB_ENEM.C:690
+            self.fire_timer = gl.random(param) if param > 0 else 0
+            self.initialized = True
+            logging.debug("Cannon init: interval=%d, speed=%d, initial_timer=%d",
+                         self.fire_interval, self.projectile_speed, self.fire_timer)
+            return
+
+        if self.fire_timer > 0:
+            self.fire_timer -= 1
+        else:
+            self.fire_projectile()
+            # Reset: param + random(param) - EB_ENEM.C:653
+            self.fire_timer = self.fire_interval + gl.random(self.fire_interval)
+
+    def fire_projectile(self):
+        """Fire a projectile in the cannon's direction"""
+        # Get cannon and projectile bounding boxes for spawn position calculation
+        cannon_pos = self.get_position()
+        cannon_bbox = self.get_bbox()
+
+        # Projectile uses projectile_sprite set during init (last sprite in cannon's animation)
+        proj_sprites = []
+        proj_bbox = pygame.Rect(0, 0, 24, 24)  # Default
+        if self.projectile_sprite:
+            proj_sprites = [self.projectile_sprite]
+            proj_bbox = self.projectile_sprite.bbox
+        else:
+            logging.warning("Cannon has no projectile_sprite set!")
+
+        # Calculate spawn position based on direction (EB_ENEM.C:688, 703, 718, 733)
+        # Projectile spawns at cannon edge in firing direction
+        pos = cannon_pos.copy()
+        if self.direction.x < 0:  # Left: X = X + cannon_left - proj_right - 1
+            pos.x = cannon_pos.x + cannon_bbox.x - (proj_bbox.x + proj_bbox.width) - 1
+        elif self.direction.x > 0:  # Right: X = X + cannon_right - proj_left + 1
+            pos.x = cannon_pos.x + cannon_bbox.x + cannon_bbox.width - proj_bbox.x + 1
+        elif self.direction.y < 0:  # Up: Y = Y + cannon_top - proj_bottom - 1
+            pos.y = cannon_pos.y + cannon_bbox.y - (proj_bbox.y + proj_bbox.height) - 1
+        elif self.direction.y > 0:  # Down: Y = Y + cannon_bottom - proj_top + 1
+            pos.y = cannon_pos.y + cannon_bbox.y + cannon_bbox.height - proj_bbox.y + 1
+
+        # Velocity based on direction and speed (EB_ENEM.C:668-671)
+        velocity = XY(self.direction.x * self.projectile_speed,
+                     self.direction.y * self.projectile_speed)
+
+        proj = EnemyProjectile(proj_sprites, pos, velocity)
+        gl.screen_manager.add_active(proj)
+        logging.debug("Cannon fired projectile at %s with velocity %s", pos, velocity)
 
 
-class CannonRight(Entity):
+class CannonLeft(CannonBase):
     def __init__(self, sprites, position):
-        Entity.__init__(self, sprites, position)
+        CannonBase.__init__(self, sprites, position, XY(-1, 0))
 
 
-class CannonUp(Entity):
+class CannonRight(CannonBase):
     def __init__(self, sprites, position):
-        Entity.__init__(self, sprites, position)
+        CannonBase.__init__(self, sprites, position, XY(1, 0))
 
 
-class CannonDown(Entity):
+class CannonUp(CannonBase):
     def __init__(self, sprites, position):
-        Entity.__init__(self, sprites, position)
+        CannonBase.__init__(self, sprites, position, XY(0, -1))
+
+
+class CannonDown(CannonBase):
+    def __init__(self, sprites, position):
+        CannonBase.__init__(self, sprites, position, XY(0, 1))
 
 
 class EnemyPlatform(Entity):
+    """
+    Platform enemy - patrols left/right on platforms.
+    Based on EB_ENEM.C:867-944 (platform_creature_init/proc).
+    """
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
         self.shoots = False
@@ -746,39 +969,224 @@ class EnemyPlatform(Entity):
         self.frames = 0
         self.frame = 0
         self.anim = "MLEFT"
+        # AI state
+        self.state = "init"
+        self.x_step = -2  # Movement speed/direction
+        self.shoot_timer = 0  # Shoot countdown timer
+        self.left_boundary = 0   # Left patrol boundary
+        self.right_boundary = 0  # Right patrol boundary
+        self.anim_delay = 0     # Animation delay counter
+        self.initialized = False
 
     def update(self):
-        pass
+        if not self.initialized:
+            self.initialize_patrol()
+            return
+
+        if self.state == "patrol":
+            self.update_patrol()
+        elif self.state == "shoot":
+            self.update_shoot()
+
+    def initialize_patrol(self):
+        """Find platform boundaries - EB_ENEM.C:867-944"""
+        pos = self.get_position()
+        screen = gl.screen_manager.get_screen()
+
+        # Scan right for boundary (platform edge or wall)
+        x = pos.x
+        for _ in range(12):  # Max 12 tiles (576 pixels)
+            # Check wall collision to right
+            if self.would_collide_at(XY(x + gl.SPRITE_X // 2, pos.y), XY(1, 0), screen):
+                break
+            # Check if ground continues
+            if not self.has_ground_at(x + gl.SPRITE_X // 2, pos.y, screen):
+                break
+            x += gl.SPRITE_X // 2
+        self.right_boundary = x
+
+        # Scan left for boundary
+        x = pos.x
+        for _ in range(12):
+            if self.would_collide_at(XY(x - gl.SPRITE_X // 2, pos.y), XY(-1, 0), screen):
+                break
+            if not self.has_ground_at(x - gl.SPRITE_X // 2, pos.y, screen):
+                break
+            x -= gl.SPRITE_X // 2
+        self.left_boundary = x
+
+        # Face player (EB_ENEM.C:903-912)
+        if gl.player and gl.player.get_x() > pos.x:
+            self.x_step = abs(self.x_step)
+            self.anim = "MRIGHT"
+        else:
+            self.x_step = -abs(self.x_step)
+            self.anim = "MLEFT"
+
+        # Init shoot timer if enemy shoots (EB_ENEM.C:917-920)
+        if self.shoots:
+            self.shoot_timer = 32 + gl.random(64)
+
+        self.anim_delay = gl.random(16)
+        self.initialized = True
+        self.state = "patrol"
+        logging.debug("EnemyPlatform initialized: pos=%s, bounds=[%d, %d]",
+                     pos, self.left_boundary, self.right_boundary)
+
+    def would_collide_at(self, pos, direction, screen):
+        """Check if there's a wall collision at position in direction"""
+        if not screen:
+            return False
+        me = self.get_bbox().copy()
+        me.move_ip(pos)
+        for obj in screen.collisions:
+            you = obj.get_bbox().copy()
+            you.move_ip(obj.get_position())
+            if me.colliderect(you):
+                sides = obj.get_sides()
+                if direction.x > 0 and sides["L"]:
+                    return True
+                elif direction.x < 0 and sides["R"]:
+                    return True
+        return False
+
+    def has_ground_at(self, x, y, screen):
+        """Check if there's ground below a position"""
+        if not screen:
+            return False
+        # Check for collision block below
+        check_y = y + gl.SPRITE_Y
+        for obj in screen.collisions:
+            obj_pos = obj.get_position()
+            obj_bbox = obj.get_bbox()
+            obj_top = obj_pos.y + obj_bbox.y
+            obj_left = obj_pos.x + obj_bbox.x
+            obj_right = obj_pos.x + obj_bbox.x + obj_bbox.w
+            if (obj.get_sides()["T"] and
+                obj_top >= check_y and obj_top < check_y + gl.SPRITE_Y and
+                obj_left <= x < obj_right):
+                return True
+        return False
+
+    def update_patrol(self):
+        """Patrol movement - EB_ENEM.C:814-865"""
+        if self.anim_delay > 0:
+            self.anim_delay -= 1
+            return
+
+        # Shooting countdown
+        if self.shoots and self.shoot_timer > 0:
+            self.shoot_timer -= 1
+            if self.shoot_timer == 0 and self.frame == 0:
+                self.anim_delay = 16
+                self.shoot_timer = 32 + gl.random(64)
+                self.state = "shoot"
+                return
+
+        # Move
+        self.position.x += self.x_step
+
+        # Animate
+        anim_sprites = self.anims.get(self.anim, []) if self.anims else []
+        max_frames = len(anim_sprites) if anim_sprites else 1
+        self.frame = (self.frame + 1) % max_frames
+
+        # Boundary check - reverse direction at edges
+        if self.x_step < 0 and self.position.x <= self.left_boundary:
+            self.x_step = -self.x_step
+            self.anim = "MRIGHT"
+            self.frame = 0
+        elif self.x_step > 0 and self.position.x >= self.right_boundary:
+            self.x_step = -self.x_step
+            self.anim = "MLEFT"
+            self.frame = 0
+
+    def update_shoot(self):
+        """Fire projectile - EB_ENEM.C:770-812"""
+        if self.anim_delay > 0:
+            self.anim_delay -= 1
+            return
+
+        # Fire horizontal projectile toward facing direction
+        pos = self.get_position()
+        if self.x_step < 0:
+            velocity = XY(-4, 0)
+        else:
+            velocity = XY(4, 0)
+
+        # Get projectile sprite if available
+        proj_sprites = []
+        if gl.enemies and hasattr(gl.enemies, 'get_projectile_sprites'):
+            proj_sprites = gl.enemies.get_projectile_sprites()
+
+        proj = EnemyProjectile(proj_sprites, pos.copy(), velocity)
+        gl.screen_manager.add_active(proj)
+        logging.debug("EnemyPlatform fired projectile at %s", pos)
+
+        self.state = "patrol"
+
+    def _get_current_sprite(self):
+        """Helper to get current animation sprite safely"""
+        if self.anims and self.anim in self.anims:
+            anim_sprites = self.anims[self.anim]
+            if anim_sprites:
+                frame = self.frame % len(anim_sprites)
+                return anim_sprites[frame]
+        return None
+
+    def get_bbox(self):
+        """Override to use anims instead of sprites for bounding box"""
+        sprite = self._get_current_sprite()
+        if sprite:
+            return sprite.bbox
+        return pygame.Rect(0, 0, gl.SPRITE_X, gl.SPRITE_Y)
+
+    def get_sides(self):
+        """Override to use anims instead of sprites"""
+        sprite = self._get_current_sprite()
+        if sprite:
+            return sprite.collide
+        return {"L": False, "R": False, "T": False, "B": False}
+
+    def is_touchable(self):
+        """Enemies are not touchable (they kill on collision instead)"""
+        return False
+
+    def get_touch(self):
+        """Enemies don't have touch type"""
+        return 0
 
     def take_damage(self, damage):
         """Enemy hit by projectile - instant kill (EB_ENEM.C:70-89)"""
-        # Original code has no health - enemies die in one hit
         self.die()
 
     def die(self):
         """Enemy destruction - matches xplode() from EB_ENEM.C:70-89"""
-        # Spawn explosion at center of enemy
         bbox = self.get_bbox()
         pos = self.get_position()
         center_x = pos.x + bbox.x + bbox.w // 2 - 12
         center_y = pos.y + bbox.y + bbox.h // 2 - 12
-        import logging
         from emhero import put_explosion
         logging.debug("Enemy destroyed at pos %s, explosion at (%d,%d)",
                      pos, center_x, center_y)
         put_explosion(center_x, center_y)
-
-        # Remove enemy from screen (matches remove_obj in original)
         self.vanish()
-        # TODO: PLAY_SAMPLE(blast_s)
 
     def display(self):
         # Scale enemy sprite 2x
-        scaled_image = pygame.transform.scale2x(self.anims[self.anim][self.frame].image)
-        scaled_pos = XY(self.get_position().x * 2, self.get_position().y * 2)
-        gl.display.blit(scaled_image, scaled_pos)
+        if self.anims and self.anim in self.anims:
+            anim_sprites = self.anims[self.anim]
+            if anim_sprites and self.frame < len(anim_sprites):
+                scaled_image = pygame.transform.scale2x(anim_sprites[self.frame].image)
+                scaled_pos = XY(self.get_position().x * 2, self.get_position().y * 2)
+                gl.display.blit(scaled_image, scaled_pos)
 
 class EnemyFlying(Entity):
+    """
+    Flying enemy - patrols left/right in the air (doesn't need platforms).
+    Based on EB_ENEM.C:867-944 with flying creature modifications.
+    Fires DOWNWARD projectiles (unlike platform enemies).
+    """
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
         self.shoots = False
@@ -786,37 +1194,297 @@ class EnemyFlying(Entity):
         self.frames = 0
         self.frame = 0
         self.anim = "MLEFT"
+        # AI state
+        self.state = "init"
+        self.x_step = -2  # Movement speed/direction
+        self.shoot_timer = 0  # Shoot countdown timer
+        self.left_boundary = 0   # Left patrol boundary
+        self.right_boundary = 0  # Right patrol boundary
+        self.anim_delay = 0     # Animation delay counter
+        self.initialized = False
+
+    def update(self):
+        if not self.initialized:
+            self.initialize_patrol()
+            return
+
+        if self.state == "patrol":
+            self.update_patrol()
+        elif self.state == "shoot":
+            self.update_shoot()
+
+    def initialize_patrol(self):
+        """Find patrol boundaries - EB_ENEM.C:867-944 (no ground check for flying)"""
+        pos = self.get_position()
+        screen = gl.screen_manager.get_screen()
+
+        # Scan right for boundary (wall only - no ground check for flying enemies)
+        x = pos.x
+        for _ in range(12):  # Max 12 tiles
+            if self.would_collide_at(XY(x + gl.SPRITE_X // 2, pos.y), XY(1, 0), screen):
+                break
+            x += gl.SPRITE_X // 2
+        self.right_boundary = x
+
+        # Scan left for boundary
+        x = pos.x
+        for _ in range(12):
+            if self.would_collide_at(XY(x - gl.SPRITE_X // 2, pos.y), XY(-1, 0), screen):
+                break
+            x -= gl.SPRITE_X // 2
+        self.left_boundary = x
+
+        # Face player
+        if gl.player and gl.player.get_x() > pos.x:
+            self.x_step = abs(self.x_step)
+            self.anim = "MRIGHT"
+        else:
+            self.x_step = -abs(self.x_step)
+            self.anim = "MLEFT"
+
+        # Init shoot timer if enemy shoots
+        if self.shoots:
+            self.shoot_timer = 32 + gl.random(64)
+
+        self.anim_delay = gl.random(16)
+        self.initialized = True
+        self.state = "patrol"
+        logging.debug("EnemyFlying initialized: pos=%s, bounds=[%d, %d]",
+                     pos, self.left_boundary, self.right_boundary)
+
+    def would_collide_at(self, pos, direction, screen):
+        """Check if there's a wall collision at position in direction"""
+        if not screen:
+            return False
+        me = self.get_bbox().copy()
+        me.move_ip(pos)
+        for obj in screen.collisions:
+            you = obj.get_bbox().copy()
+            you.move_ip(obj.get_position())
+            if me.colliderect(you):
+                sides = obj.get_sides()
+                if direction.x > 0 and sides["L"]:
+                    return True
+                elif direction.x < 0 and sides["R"]:
+                    return True
+        return False
+
+    def update_patrol(self):
+        """Patrol movement"""
+        if self.anim_delay > 0:
+            self.anim_delay -= 1
+            return
+
+        # Shooting countdown
+        if self.shoots and self.shoot_timer > 0:
+            self.shoot_timer -= 1
+            if self.shoot_timer == 0 and self.frame == 0:
+                self.anim_delay = 16
+                self.shoot_timer = 32 + gl.random(64)
+                self.state = "shoot"
+                return
+
+        # Move
+        self.position.x += self.x_step
+
+        # Animate
+        anim_sprites = self.anims.get(self.anim, []) if self.anims else []
+        max_frames = len(anim_sprites) if anim_sprites else 1
+        self.frame = (self.frame + 1) % max_frames
+
+        # Boundary check - reverse direction at edges
+        if self.x_step < 0 and self.position.x <= self.left_boundary:
+            self.x_step = -self.x_step
+            self.anim = "MRIGHT"
+            self.frame = 0
+        elif self.x_step > 0 and self.position.x >= self.right_boundary:
+            self.x_step = -self.x_step
+            self.anim = "MLEFT"
+            self.frame = 0
+
+    def update_shoot(self):
+        """Fire projectile DOWNWARD (unlike platform enemy)"""
+        if self.anim_delay > 0:
+            self.anim_delay -= 1
+            return
+
+        # Fire DOWNWARD projectile (flying enemies shoot down)
+        pos = self.get_position()
+        velocity = XY(0, 4)  # Always fires down
+
+        # Get projectile sprite if available
+        proj_sprites = []
+        if gl.enemies and hasattr(gl.enemies, 'get_projectile_sprites'):
+            proj_sprites = gl.enemies.get_projectile_sprites()
+
+        proj = EnemyProjectile(proj_sprites, pos.copy(), velocity)
+        gl.screen_manager.add_active(proj)
+        logging.debug("EnemyFlying fired projectile at %s (downward)", pos)
+
+        self.state = "patrol"
+
+    def _get_current_sprite(self):
+        """Helper to get current animation sprite safely"""
+        if self.anims and self.anim in self.anims:
+            anim_sprites = self.anims[self.anim]
+            if anim_sprites:
+                frame = self.frame % len(anim_sprites)
+                return anim_sprites[frame]
+        return None
+
+    def get_bbox(self):
+        """Override to use anims instead of sprites for bounding box"""
+        sprite = self._get_current_sprite()
+        if sprite:
+            return sprite.bbox
+        return pygame.Rect(0, 0, gl.SPRITE_X, gl.SPRITE_Y)
+
+    def get_sides(self):
+        """Override to use anims instead of sprites"""
+        sprite = self._get_current_sprite()
+        if sprite:
+            return sprite.collide
+        return {"L": False, "R": False, "T": False, "B": False}
+
+    def is_touchable(self):
+        """Enemies are not touchable (they kill on collision instead)"""
+        return False
+
+    def get_touch(self):
+        """Enemies don't have touch type"""
+        return 0
 
     def take_damage(self, damage):
         """Enemy hit by projectile - instant kill (EB_ENEM.C:70-89)"""
-        # Original code has no health - enemies die in one hit
         self.die()
 
     def die(self):
         """Enemy destruction - matches xplode() from EB_ENEM.C:70-89"""
-        # Spawn explosion at center of enemy
         bbox = self.get_bbox()
         pos = self.get_position()
         center_x = pos.x + bbox.x + bbox.w // 2 - 12
         center_y = pos.y + bbox.y + bbox.h // 2 - 12
-        import logging
         from emhero import put_explosion
-        logging.debug("Enemy destroyed at pos %s, explosion at (%d,%d)",
+        logging.debug("EnemyFlying destroyed at pos %s, explosion at (%d,%d)",
                      pos, center_x, center_y)
         put_explosion(center_x, center_y)
-
-        # Remove enemy from screen (matches remove_obj in original)
         self.vanish()
-        # TODO: PLAY_SAMPLE(blast_s)
-
-    def update(self):
-        pass
 
     def display(self):
         # Scale enemy sprite 2x
-        scaled_image = pygame.transform.scale2x(self.anims[self.anim][self.frame].image)
-        scaled_pos = XY(self.get_position().x * 2, self.get_position().y * 2)
-        gl.display.blit(scaled_image, scaled_pos)
+        if self.anims and self.anim in self.anims:
+            anim_sprites = self.anims[self.anim]
+            if anim_sprites and self.frame < len(anim_sprites):
+                scaled_image = pygame.transform.scale2x(anim_sprites[self.frame].image)
+                scaled_pos = XY(self.get_position().x * 2, self.get_position().y * 2)
+                gl.display.blit(scaled_image, scaled_pos)
+
+
+class EnemyProjectile(Entity):
+    """
+    Projectile fired by enemies (cannons, platform/flying enemies).
+    Matches cannon_miss from EB_ENEM.C:581-642
+    """
+    def __init__(self, sprites, position, velocity):
+        Entity.__init__(self, sprites, position)
+        self.velocity = velocity  # XY(x_speed, y_speed)
+        self.frame = 0
+
+    def update(self):
+        # Move projectile
+        self.position.x += self.velocity.x
+        self.position.y += self.velocity.y
+
+        # Animate
+        if self.sprites:
+            self.frame = (self.frame + 1) % len(self.sprites)
+
+        # Off-screen check
+        if (self.position.x < -gl.SPRITE_X or
+            self.position.x > gl.SCREEN_X * gl.SPRITE_X or
+            self.position.y < -gl.SPRITE_Y or
+            self.position.y > gl.SCREEN_Y * gl.SPRITE_Y):
+            self.vanish()
+            return
+
+        # Wall collision check - only stop on SOLID walls (EB_ENEM.C:581-642)
+        # Original uses cave_test which checks tile solidity, not object overlap
+        # Only collide with objects that have ALL collision sides (solid blocks)
+        screen = gl.screen_manager.get_screen()
+        if screen and self.check_solid_wall_collision(screen):
+            self.vanish()
+
+    def check_solid_wall_collision(self, screen):
+        """
+        Check collision with solid walls only (not decorative sprites).
+        Matches original cave_test behavior - only solid blocks stop projectiles.
+        """
+        if not screen:
+            return False
+
+        me = self.get_bbox().copy()
+        me.move_ip(self.get_position())
+
+        for obj in screen.collisions:
+            you = obj.get_bbox().copy()
+            you.move_ip(obj.get_position())
+            if me.colliderect(you):
+                sides = obj.get_sides()
+                # Only stop on objects that block from the direction we're moving
+                # AND are actual solid walls (have multiple collision sides)
+                num_sides = sum([sides["L"], sides["R"], sides["T"], sides["B"]])
+                if num_sides >= 2:  # Solid walls typically have 2+ collision sides
+                    if self.velocity.x > 0 and sides["L"]:
+                        return True
+                    elif self.velocity.x < 0 and sides["R"]:
+                        return True
+                    elif self.velocity.y > 0 and sides["T"]:
+                        return True
+                    elif self.velocity.y < 0 and sides["B"]:
+                        return True
+        return False
+
+    def get_bbox(self):
+        """Return projectile's actual bounding box from sprite data"""
+        if self.sprites and len(self.sprites) > 0:
+            sprite = self.sprites[self.frame % len(self.sprites)]
+            if sprite and hasattr(sprite, 'bbox'):
+                return sprite.bbox
+        # Fallback if no sprite
+        return pygame.Rect(0, 0, gl.SPRITE_X, gl.SPRITE_Y)
+
+    def get_sides(self):
+        """Projectiles don't block movement"""
+        return {"L": False, "R": False, "T": False, "B": False}
+
+    def is_touchable(self):
+        """Projectiles are not touchable (they kill via collision check)"""
+        return False
+
+    def get_touch(self):
+        """Projectiles don't have touch type"""
+        return 0
+
+    def display(self):
+        """Display projectile sprite at 2x scale"""
+        pos = self.get_position()
+        scaled_pos = (pos.x * 2, pos.y * 2)
+
+        if self.sprites and len(self.sprites) > 0:
+            sprite = self.sprites[self.frame % len(self.sprites)]
+            if sprite and hasattr(sprite, 'image') and sprite.image:
+                scaled_image = pygame.transform.scale2x(sprite.image)
+                gl.display.blit(scaled_image, scaled_pos)
+                return
+
+        # Draw placeholder circle when no valid sprites available
+        # Red filled circle to make projectiles visible
+        rect = pygame.Rect(scaled_pos[0] + 16, scaled_pos[1] + 16, 32, 32)
+        pygame.draw.circle(gl.display, pygame.Color(255, 0, 0), rect.center, 12)
+        pygame.draw.circle(gl.display, pygame.Color(255, 255, 0), rect.center, 8)
+
+    def name(self):
+        return "EnemyProjectile"
 
 
 class Explosion(Entity):

@@ -34,7 +34,7 @@ class SpriteData():
 def load_data(filename):
     global sprites
     global areas
-    set_path = os.path.join(r"D:\Work\PyEM\misc\conversion\newdata", filename)
+    set_path = os.path.join(r"E:\pyelectroman-git\data", filename)
     params_path = os.path.join(set_path, filename + ".ebs")
     f = open(params_path, "rt")
     data = json.load(f)
@@ -83,6 +83,9 @@ def display_data(info_type):
                 areas[snum] = area
                 pygame.draw.rect(screen, pygame.Color(127, 127, 127),
                                  pygame.Rect(x_pos - 1, y_pos -1, 49, 49), 1)
+                # Display sprite number below the sprite
+                num_txt = font.render("%d" % snum, False, pygame.Color(200, 200, 200))
+                screen.blit(num_txt, (x_pos + 20, y_pos + 50))
                 if info_type == 1:
                     for stp in range(4):
                         txt = "%02X %02X" % (status[stp * 2],

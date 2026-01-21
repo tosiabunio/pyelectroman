@@ -108,6 +108,10 @@ class PlayerEntity(ga.FSM, ga.Entity):
         self.frames["TELE"] = len(self.sprites["TELE"])
         self.switch_state(self.state_init)
         self.keys = 0  # keys needed to open the exit
+        # Enemy collision box (narrower than physical) - EB_HERO.C:123
+        # hero_enem_stat = {0,0,0,0,7,17,10,45} -> x=7, w=10, y=17, h=45
+        # This is the narrower hitbox used for enemy/hazard collision detection
+        self.enemy_bbox = pygame.Rect(7, 17, 10, 45)
         self.power = 0  # weapon's battery power
         self.temp = 0  # weapons's temperature increase
         self.fired = False  # to disable repeated shots
@@ -219,6 +223,13 @@ class PlayerEntity(ga.FSM, ga.Entity):
             self.frame = 0
             self.move_vector.y = 0
             self.jump = 0
+
+        # Check killing floor death (EB_ENEM.C:486-492)
+        # When killing_floor is active, player dies if they fall below threshold
+        if gl.killing_floor and self.get_bottom() > (gl.SCREEN_Y - 1) * gl.SPRITE_Y:
+            logging.info("Player fell into killing floor")
+            return self.new_state(self.state_death)
+
         if self.to_ground == 0:
             return self.switch_state(self.state_land)
         else:
@@ -535,6 +546,60 @@ class PlayerEntity(ga.FSM, ga.Entity):
                     pass
             di.message(XY(16, 40), "touch: %s" % names)
 
+    def check_enemy_collision(self):
+        """
+        Check collision with enemies/hazards - matches ENEM_TEST (EB_HERO.C:601-626)
+        Uses POS_COMPARE: expands player box by enemy size, checks enemy center.
+        """
+        screen = gl.screen_manager.get_screen()
+        if not screen:
+            return
+
+        pos = self.get_position()
+        # Player enemy collision box (using narrower enemy_bbox)
+        p_left = pos.x + self.enemy_bbox.x
+        p_right = pos.x + self.enemy_bbox.x + self.enemy_bbox.width
+        p_top = pos.y + self.enemy_bbox.y
+        p_bottom = pos.y + self.enemy_bbox.y + self.enemy_bbox.height
+
+        for entity in screen.active:
+            entity_type = type(entity).__name__
+            is_enemy_type = isinstance(entity, (ga.EnemyPlatform, ga.EnemyFlying, ga.EnemyProjectile))
+
+            # Debug: log all active entities being checked
+            logging.debug("check_enemy_collision: checking %s, is_enemy=%s",
+                         entity_type, is_enemy_type)
+
+            if is_enemy_type:
+                e_pos = entity.get_position()
+                e_bbox = entity.get_bbox()
+
+                # Enemy center point
+                e_cx = e_pos.x + e_bbox.x + e_bbox.width // 2
+                e_cy = e_pos.y + e_bbox.y + e_bbox.height // 2
+
+                # Expand player box by half enemy size (POS_COMPARE algorithm)
+                expand_x = e_bbox.width // 2
+                expand_y = e_bbox.height // 2
+
+                logging.debug("  Enemy %s: pos=%s, bbox=%s, center=(%d,%d)",
+                             entity_type, e_pos, e_bbox, e_cx, e_cy)
+                logging.debug("  Player box: left=%d, right=%d, top=%d, bottom=%d",
+                             p_left, p_right, p_top, p_bottom)
+                logging.debug("  Expanded check: x=[%d, %d], y=[%d, %d]",
+                             p_left - expand_x, p_right + expand_x,
+                             p_top - expand_y, p_bottom + expand_y)
+
+                if (p_left - expand_x < e_cx < p_right + expand_x and
+                    p_top - expand_y < e_cy < p_bottom + expand_y):
+                    # Collision - trigger death
+                    if self.state != self.state_death:
+                        logging.warning("COLLISION! Player hit by %s at %s (center=%d,%d)",
+                                       entity_type, e_pos, e_cx, e_cy)
+                        logging.warning("  Player pos=%s, enemy_bbox=%s", pos, self.enemy_bbox)
+                        self.new_state(self.state_death)
+                    return
+
     def respawn(self):
         """
         Respawn player at checkpoint after death.
@@ -626,6 +691,9 @@ class PlayerEntity(ga.FSM, ga.Entity):
         # check for touching objects at current position (but not during death)
         if self.state != self.state_death:
             self.check_touch()
+        # check enemy collision (not during death or teleport)
+        if self.state not in [self.state_death, self.state_teleport_in, self.state_teleport_out]:
+            self.check_enemy_collision()
         # keep track of to ground distance
         self.to_ground = self.check_ground(self.screen)
         di.message(XY(16, 8), "to ground: %d" % self.to_ground)

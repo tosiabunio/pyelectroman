@@ -250,6 +250,7 @@ class Gameplay:
         start_screen = gl.checkpoint.get_screen()
         start_position = gl.checkpoint.get_position()
         gl.disks = 0 # no disks collected after level load
+        gl.killing_floor = False # reset killing floor flag on level load
         if start_position:
             start_position += XY(gl.SPRITE_X // 2, gl.SPRITE_Y)
             gl.screen_manager.change_screen(start_screen)
