@@ -58,6 +58,7 @@ disk_positions = [] # list of (screen, position) for collected disks (EB.C:1391-
 exit_level_flag = False # set when player exits level
 next_level_code = 0 # next level to load (from exit sprite param)
 killing_floor = False # set when KillingFloor entity activates
+game_completed = False # set when all 8 levels completed
 
 # random numbers for active screen
 screen_randoms = []

@@ -511,6 +511,11 @@ class PlayerEntity(ga.FSM, ga.Entity):
                         if hasattr(obj, 'activate'):
                             obj.activate()
                         di.info_lines.add("Checkpoint activated")
+
+                        # AUTO-SAVE on checkpoint activation
+                        import emmenu as mn
+                        if mn.save_current_game():
+                            di.info_lines.add("Game saved")
                         # TODO: PLAY_SAMPLE(checkp_s) - sound effect
                 elif touch_type == 4:
                     # killer - trigger death (only if not already dying)

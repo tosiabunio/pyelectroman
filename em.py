@@ -7,6 +7,7 @@ import emgame as ga
 import emdisplay as di
 import emhero as pl
 import emother as ot
+import emmenu as mn
 import pygame
 import logging
 import time
@@ -325,6 +326,7 @@ class Gameplay:
                 else:
                     # Game completed
                     di.info_lines.add("Congratulations! Game completed!")
+                    gl.game_completed = True
                     gl.loop_main_loop = False
 
             gl.logic_time = time.perf_counter() - logic_start
@@ -340,6 +342,23 @@ class Gameplay:
 
     def stop(self):
         pass
+
+    def reset_state(self):
+        """Reset game state for a new game."""
+        gl.current_level = 0
+        gl.disks = 0
+        gl.disk_positions = []
+        gl.exit_level_flag = False
+        gl.next_level_code = 0
+        gl.killing_floor = False
+        gl.game_completed = False
+        # Reset checkpoint to beginning of level 1
+        gl.checkpoint.update(0, 0, XY(0, 0))
+        # Reset player state
+        if gl.player:
+            gl.player.power = 0
+            gl.player.ammo = 0
+            gl.player.temp = 0
 
 
 class Game:
@@ -370,9 +389,42 @@ def fast_main():
     game = Game()
     game.init()
     gameplay = Gameplay()
-    gameplay.start()
-    gameplay.run()
-    gameplay.stop()
+
+    # Main menu loop
+    running = True
+    while running:
+        # Show main menu
+        menu_result = mn.show_main_menu()
+
+        if menu_result == "quit":
+            running = False
+            continue
+
+        if menu_result == "continue":
+            # Load saved game
+            if mn.load_saved_game():
+                di.info_lines.add("Game loaded")
+            else:
+                di.info_lines.add("Failed to load save")
+                continue
+
+        elif menu_result == "new_game":
+            # Reset to fresh game state
+            gameplay.reset_state()
+            di.info_lines.add("New game started")
+
+        # Start and run gameplay
+        gameplay.start()
+        gameplay.run()
+        gameplay.stop()
+
+        # Check if game was completed or player quit
+        if gl.game_completed:
+            # Show completion message and return to menu
+            di.info_lines.add("Thanks for playing!")
+            gl.game_completed = False
+        # Otherwise, player pressed ESC - return to menu
+
     game.quit()
 
 
