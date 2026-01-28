@@ -37,7 +37,7 @@ show_collisions = False
 # data related globals
 data_folder = r"data"  # defaul data folder
 level_names = ["elek", "koryt", "mieszk", "magaz",
-               "fiolet", "10x10", "sluzy", "widok"]
+               "fiolet", "10x10", "sluzy", "widok", "test"]
 current_level = 0  # current level number
 level = None  # currently loaded level
 

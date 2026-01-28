@@ -48,6 +48,7 @@ class Gameplay:
                              pygame.K_6: self.on_k_6,
                              pygame.K_7: self.on_k_7,
                              pygame.K_8: self.on_k_8,
+                             pygame.K_9: self.on_k_9,
                              pygame.K_0: self.on_k_0,
                              pygame.K_d: self.on_k_d,
                              pygame.K_f: self.on_k_f}
@@ -223,6 +224,12 @@ class Gameplay:
     def on_k_8(self):
         di.info_lines.add("level 8")
         gl.current_level = 7
+        self.load_level()
+
+    def on_k_9(self):
+        """Debug: Jump to test level"""
+        di.info_lines.add("Test level")
+        gl.current_level = 8  # test level index
         self.load_level()
 
     def on_k_0(self):

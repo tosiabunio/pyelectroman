@@ -31,6 +31,7 @@ This document lists all keyboard shortcuts available in the Python version of Py
 | 6 | Jump to Level 6 (10x10) |
 | 7 | Jump to Level 7 (sluzy) |
 | 8 | Jump to Level 8 (widok) |
+| 9 | Jump to Test Level (weapon testing arena) |
 
 ## Screen Navigation
 
@@ -87,6 +88,16 @@ The following debug information is always displayed:
 | Bottom-center | Disk counter (0-3), blinks when 3 disks collected |
 | Bottom-left | Temperature LED bar |
 | Bottom-right | Ammo LED bar |
+
+## Test Level
+
+The test level (key 9) is a dedicated weapon testing arena:
+
+- Two horizontally connected screens with various shootable objects
+- Uses original elek1/elek2 sprites (behavior matches real game)
+- Shootable objects from elek2 (sprites with 0x20 shootable flag)
+- Use Shift+1-5 to set weapon power for testing different weapon levels
+- Regenerate with `python create_test_level.py`
 
 ## Notes
 
