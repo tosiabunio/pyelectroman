@@ -548,11 +548,32 @@ class PlayerEntity(ga.FSM, ga.Entity):
                     else:
                         di.info_lines.add("Need %d more disk(s)" % (3 - gl.disks))
                 elif touch_type == 7:
-                    # special good
-                    pass
-                elif touch_type == 8:
-                    # special bad
-                    pass
+                    # special item - matches special_proc() (EB_HERO.C:562-584)
+                    # Behavior depends on PARAM byte value
+                    param = obj.sprites[obj.frame].param
+                    if param >= 128:
+                        # PARAM >= 128: Alternate level exit
+                        # The param value itself becomes the next level code
+                        gl.next_level_code = param
+                        gl.exit_level_flag = True
+                        self.teleport_target = None  # teleport_x=0, teleport_y=0
+                        self.new_state(self.state_teleport_out)
+                        di.info_lines.add("Secret exit!")
+                    elif self.controller.down:
+                        # PARAM < 128: Requires DOWN key to activate
+                        # Halve the parameter value each activation
+                        obj.sprites[obj.frame].param = param // 2
+                        if obj.sprites[obj.frame].param == 0:
+                            # Parameter reached 0: teleport to secret area
+                            # cave 0xec (236), position (7, 1) in grid coordinates
+                            self.teleport_target = (0xec, XY(7 * gl.SPRITE_X, 1 * gl.SPRITE_Y))
+                            self.new_state(self.state_teleport_out)
+                            di.info_lines.add("Secret area found!")
+                        else:
+                            # Parameter still > 0: trigger death (trap!)
+                            if self.state != self.state_death:
+                                self.new_state(self.state_death)
+                    # No touch type 8 in original C code - only types 0-7
             di.message(XY(16, 40), "touch: %s" % names)
 
     def check_enemy_collision(self):
