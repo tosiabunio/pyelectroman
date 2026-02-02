@@ -52,6 +52,7 @@ enemies = None  # data class for enemies
 weapons = None  # data class for weapons
 screen = None  # current screen definition
 info = None  # data class for info sprites
+sound_manager = None  # sound effects manager
 counter = 0 # +1 every loop
 disks = 0 # number of disks collected
 disk_positions = [] # list of (screen, position) for collected disks (EB.C:1391-1395)

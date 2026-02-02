@@ -3,6 +3,7 @@
 import emglobals as gl
 from emglobals import XY
 import emdata as da
+import emsound as snd
 import pygame
 import os
 import json
@@ -371,10 +372,13 @@ class MainMenu:
             # Skip to next valid option
             new_selected = 1 if direction > 0 else len(self.OPTIONS) - 1
 
+        if self.selected != new_selected:
+            snd.play_sound('ask')
         self.selected = new_selected
 
     def select_option(self):
         """Handle option selection."""
+        snd.play_sound('ask')
         option = self.OPTIONS[self.selected]
 
         if option == "CONTINUE":

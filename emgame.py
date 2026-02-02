@@ -2,6 +2,7 @@
 
 import emglobals as gl
 import emdata as da
+import emsound as snd
 from emglobals import XY
 import pygame
 import copy
@@ -705,6 +706,7 @@ class RocketUp(Entity):
         if screen and self.check_collision(XY(0, -self.speed), screen):
             from emhero import put_explosion
             put_explosion(self.position.x, self.position.y)
+            snd.play_sound('blast')
             self.vanish()
             return
 
@@ -773,6 +775,7 @@ class RocketDown(Entity):
         if screen and self.check_collision(XY(0, self.speed), screen):
             from emhero import put_explosion
             put_explosion(self.position.x, self.position.y)
+            snd.play_sound('blast')
             self.vanish()
             return
 
@@ -958,6 +961,7 @@ class CannonBase(Entity):
 
         proj = EnemyProjectile(proj_sprites, pos, velocity)
         gl.screen_manager.add_active(proj)
+        snd.play_sound('laser')
         logging.debug("Cannon fired projectile at %s with velocity %s", pos, velocity)
 
 
@@ -1102,6 +1106,11 @@ class EnemyPlatform(Entity):
         if self.shoots and self.shoot_timer > 0:
             self.shoot_timer -= 1
             if self.shoot_timer == 0 and self.frame == 0:
+                # Warning sound based on distance (EB_ENEM.C:826-829)
+                if abs(self.x_step) < 5:
+                    snd.play_sound('warning')
+                else:
+                    snd.play_sound('warning2')
                 self.anim_delay = 16
                 self.shoot_timer = 32 + gl.random(64)
                 self.state = "shoot"
@@ -1145,6 +1154,7 @@ class EnemyPlatform(Entity):
 
         proj = EnemyProjectile(proj_sprites, pos.copy(), velocity)
         gl.screen_manager.add_active(proj)
+        snd.play_sound('shoot')
         logging.debug("EnemyPlatform fired projectile at %s", pos)
 
         self.state = "patrol"
@@ -1194,6 +1204,7 @@ class EnemyPlatform(Entity):
         logging.debug("Enemy destroyed at pos %s, explosion at (%d,%d)",
                      pos, center_x, center_y)
         put_explosion(center_x, center_y)
+        snd.play_sound('blast')
         self.vanish()
 
     def display(self):
@@ -1303,6 +1314,8 @@ class EnemyFlying(Entity):
         if self.shoots and self.shoot_timer > 0:
             self.shoot_timer -= 1
             if self.shoot_timer == 0 and self.frame == 0:
+                # Warning sound (EB_ENEM.C:826-829)
+                snd.play_sound('warning2')
                 self.anim_delay = 16
                 self.shoot_timer = 32 + gl.random(64)
                 self.state = "shoot"
@@ -1343,6 +1356,7 @@ class EnemyFlying(Entity):
 
         proj = EnemyProjectile(proj_sprites, pos.copy(), velocity)
         gl.screen_manager.add_active(proj)
+        snd.play_sound('eshoot')
         logging.debug("EnemyFlying fired projectile at %s (downward)", pos)
 
         self.state = "patrol"
@@ -1392,6 +1406,7 @@ class EnemyFlying(Entity):
         logging.debug("EnemyFlying destroyed at pos %s, explosion at (%d,%d)",
                      pos, center_x, center_y)
         put_explosion(center_x, center_y)
+        snd.play_sound('blast')
         self.vanish()
 
     def display(self):

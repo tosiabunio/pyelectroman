@@ -8,6 +8,7 @@ import emdisplay as di
 import emhero as pl
 import emother as ot
 import emmenu as mn
+import emsound as snd
 import pygame
 import logging
 import time
@@ -31,6 +32,7 @@ class Gameplay:
         gl.info = ot.Info()
         di.indicators = di.Indicators()
         gl.checkpoint = ga.ActiveCheckpoint()
+        gl.sound_manager = snd.SoundManager()
         # initialize rest
         self.loop = True
         self.screens_map = None
@@ -51,7 +53,8 @@ class Gameplay:
                              pygame.K_9: self.on_k_9,
                              pygame.K_0: self.on_k_0,
                              pygame.K_d: self.on_k_d,
-                             pygame.K_f: self.on_k_f}
+                             pygame.K_f: self.on_k_f,
+                             pygame.K_F7: self.on_k_f7}
         self.deferred = None
 
     @property
@@ -251,6 +254,12 @@ class Gameplay:
             gl.disks = 3
             di.info_lines.add("Debug: 3 disks added")
 
+    def on_k_f7(self):
+        """Toggle sound effects on/off (F7 - matches original game)"""
+        if gl.sound_manager:
+            enabled = gl.sound_manager.toggle()
+            di.info_lines.add("Sound: %s" % ("ON" if enabled else "OFF"))
+
     def load_level(self):
         gl.level.load(gl.level_names[gl.current_level])
         gl.screen_manager.add_screens(gl.level.get_screens())
@@ -375,11 +384,11 @@ class Game:
     """
     def __init__(self):
         if gl.log_filename:
-            # Log to file when filename is set
+            # Log to file when filename is set (INFO level to reduce verbosity)
             logging.basicConfig(filename=gl.log_filename,
                                 filemode="w", format=(
                                 '%(levelname)s: %(funcName)s(): %(message)s'),
-                                level=logging.DEBUG)
+                                level=logging.INFO)
         else:
             # Log to console when no filename
             logging.basicConfig(level=logging.DEBUG)

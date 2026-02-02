@@ -5,6 +5,7 @@ from emglobals import XY
 import emdisplay as di
 import emdata as da
 import emgame as ga
+import emsound as snd
 import pygame
 import copy
 import logging
@@ -188,6 +189,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
     def state_jump(self, init=False):
         """Handle jumping state."""
         if init:
+            snd.play_sound('jump')
             if self.controller.left:
                 self.move_vector.x = -MOVE_STEP
                 self.orientation = 0
@@ -248,6 +250,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
     def state_land(self, init=False):
         """Handle landing state."""
         if init:
+            snd.play_sound('jumpend')
             self.counter = 2
         self.anim = ("LLAND", "RLAND")[self.orientation]
         self.frame = 0
@@ -278,6 +281,9 @@ class PlayerEntity(ga.FSM, ga.Entity):
             moved = self.move()
             if moved.x != 0:
                 self.frame = (self.frame + 1) % self.frames[self.anim]
+                # Footstep sound on frames 2 and 7 (EB_HERO.C:1010,1018)
+                if self.frame == 2 or self.frame == 7:
+                    snd.play_sound('footstep')
             else:
                 # cannot move farter, play stand animation
                 self.anim = ("LSTAND", "RSTAND")[self.orientation]
@@ -351,6 +357,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
                 gl.screen_manager.change_screen(self.teleport_target[0])
             self.set_position(self.teleport_target[1] + XY(0, -gl.SPRITE_Y * 2))
         if init:
+            snd.play_sound('area')
             self.anim = "TELE"
             self.counter = self.frames[self.anim] - 1
             self.frame = self.frames[self.anim] - 1
@@ -388,8 +395,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
             offset_x = -12 + gl.random(24)
             offset_y = gl.random(24)
             put_explosion(int(pos.x + offset_x), int(pos.y + offset_y))
-
-            # TODO: PLAY_SAMPLE(blast_s) - sound effect
+            snd.play_sound('blast')
         elif self.death_timer < 70:
             # After-death countdown phase (hero_after_kill_proc)
             # Wait for ~3 seconds (60 frames at 20fps)
@@ -484,12 +490,12 @@ class PlayerEntity(ga.FSM, ga.Entity):
                     if self.power < 5:
                         self.inc_power()
                         obj.vanish()  # remove battery from the map
+                        snd.play_sound('battery')
                 elif touch_type == 2:
                     if self.controller.down:
+                        snd.play_sound('teleport')
                         self.find_teleport_target(obj.get_position())
                         self.new_state(self.state_teleport_out)
-                    # teleport
-                    pass
                 elif touch_type == 3:
                     # checkpoint - activate if different from current
                     current_screen = gl.screen_manager.get_screen_number()
@@ -516,7 +522,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
                         import emmenu as mn
                         if mn.save_current_game():
                             di.info_lines.add("Game saved")
-                        # TODO: PLAY_SAMPLE(checkp_s) - sound effect
+                        snd.play_sound('checkp')
                 elif touch_type == 4:
                     # killer - trigger death (only if not already dying)
                     if self.state != self.state_death:
@@ -530,7 +536,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
                     gl.disk_positions.append((screen_num, obj.position.copy()))
                     obj.vanish()  # remove floppy from the map
                     di.info_lines.add("Disk collected (%d/3)" % gl.disks)
-                    # TODO: PLAY_SAMPLE(disk_s) - sound effect
+                    snd.play_sound('disk')
                 elif touch_type == 6:
                     # exit - check disk requirement (EB_HERO.C:548-560)
                     if gl.disks >= 3:
@@ -544,7 +550,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
                         # Trigger teleport out animation (EB_HERO.C:555-558)
                         # teleport_flag++, teleport_x=0, teleport_y=0
                         self.new_state(self.state_teleport_out)
-                        # TODO: PLAY_SAMPLE(exit_s) - sound effect
+                        snd.play_sound('teleport')
                     else:
                         di.info_lines.add("Need %d more disk(s)" % (3 - gl.disks))
                 elif touch_type == 7:
@@ -807,6 +813,8 @@ class PlayerEntity(ga.FSM, ga.Entity):
                 self.ammo -= 1
                 di.info_lines.add("shot fired")
                 if 1 <= self.power <= 5:
+                    # Play weapon sound based on power level (EB_HERO.C:343-455)
+                    snd.play_sound('shoot%d' % self.power)
                     types = ["%d_L" % self.power, "%d_R" % self.power]
                     add_projectile(types[self.orientation])
                 if not self.ammo:
@@ -911,6 +919,8 @@ class Projectile(ga.Entity):
                 current_frame = getattr(entity, 'frame', 0)
                 current_frame = min(current_frame, len(entity.sprites) - 1)
                 sprite = entity.sprites[current_frame]
+                if sprite is None:
+                    continue
                 is_shootable = sprite.flag('shootable')
 
                 if is_shootable:
@@ -978,6 +988,7 @@ class Projectile(ga.Entity):
         # Spawn explosion at hit location
         pos = self.get_position()
         put_explosion(pos.x, pos.y)
+        snd.play_sound('blast')
 
         self.hit_count += 1
 
@@ -1050,6 +1061,7 @@ class Projectile(ga.Entity):
             explosion = ga.Explosion(explosion_sprites, XY(exp_x, exp_y))
             if gl.screen:
                 gl.screen.active.append(explosion)
+            snd.play_sound('blast')
         else:
             # Non-breakable: explosion only, no broken sprite left behind
             # But object is STILL removed (xplode in C code removes the object)
@@ -1058,6 +1070,7 @@ class Projectile(ga.Entity):
             obj_pos = obj.get_position()
             put_explosion(obj_pos.x, obj_pos.y)
             obj.vanish()  # Remove the object!
+            snd.play_sound('blast')
 
     def bow_end_explosion(self):
         """
@@ -1074,6 +1087,7 @@ class Projectile(ga.Entity):
         put_explosion(pos.x - direction * 2, pos.y)
         put_explosion(pos.x + direction * 16, pos.y + 24)
         put_explosion(pos.x + direction * 2, pos.y + 48)
+        snd.play_sound('blast')
 
         logging.debug("Bow triple explosion at x=%d", pos.x)
 
