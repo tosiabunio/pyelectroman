@@ -1022,25 +1022,26 @@ class EnemyPlatform(Entity):
         screen = gl.screen_manager.get_screen()
 
         # Scan right for boundary (platform edge or wall)
+        # C uses 24px steps (one tile); in 2× space that is SPRITE_X (48px)
         x = pos.x
         for _ in range(12):  # Max 12 tiles (576 pixels)
             # Check wall collision to right
-            if self.would_collide_at(XY(x + gl.SPRITE_X // 2, pos.y), XY(1, 0), screen):
+            if self.would_collide_at(XY(x + gl.SPRITE_X, pos.y), XY(1, 0), screen):
                 break
             # Check if ground continues
-            if not self.has_ground_at(x + gl.SPRITE_X // 2, pos.y, screen):
+            if not self.has_ground_at(x + gl.SPRITE_X, pos.y, screen):
                 break
-            x += gl.SPRITE_X // 2
+            x += gl.SPRITE_X
         self.right_boundary = x
 
         # Scan left for boundary
         x = pos.x
         for _ in range(12):
-            if self.would_collide_at(XY(x - gl.SPRITE_X // 2, pos.y), XY(-1, 0), screen):
+            if self.would_collide_at(XY(x - gl.SPRITE_X, pos.y), XY(-1, 0), screen):
                 break
-            if not self.has_ground_at(x - gl.SPRITE_X // 2, pos.y, screen):
+            if not self.has_ground_at(x - gl.SPRITE_X, pos.y, screen):
                 break
-            x -= gl.SPRITE_X // 2
+            x -= gl.SPRITE_X
         self.left_boundary = x
 
         # Face player (EB_ENEM.C:903-912)
@@ -1055,7 +1056,9 @@ class EnemyPlatform(Entity):
         if self.shoots:
             self.shoot_timer = 32 + gl.random(64)
 
-        self.anim_delay = gl.random(16)
+        # Initial step delay: random(256) % ((PARAMB & 0x0f) + 1) (EB_ENEM.C:941)
+        param = self.sprites[0].param if self.sprites else 0
+        self.anim_delay = gl.random(256) % ((param & 0x0f) + 1)
         self.initialized = True
         self.state = "patrol"
         logging.debug("EnemyPlatform initialized: pos=%s, bounds=[%d, %d]",
@@ -1124,6 +1127,12 @@ class EnemyPlatform(Entity):
         max_frames = len(anim_sprites) if anim_sprites else 1
         self.frame = (self.frame + 1) % max_frames
 
+        # Per-step delay from sprite PARAMB lower nibble (EB_ENEM.C:837)
+        # CNTR = st[PARAMB] & 0x0f; — controls movement speed between steps
+        sprite = self._get_current_sprite()
+        param = sprite.param if sprite else 0
+        self.anim_delay = param & 0x0f
+
         # Boundary check - reverse direction at edges
         if self.x_step < 0 and self.position.x <= self.left_boundary:
             self.x_step = -self.x_step
@@ -1142,15 +1151,18 @@ class EnemyPlatform(Entity):
 
         # Fire horizontal projectile toward facing direction
         pos = self.get_position()
-        if self.x_step < 0:
-            velocity = XY(-4, 0)
-        else:
-            velocity = XY(4, 0)
 
         # Get projectile sprite if available
         proj_sprites = []
         if gl.enemies and hasattr(gl.enemies, 'get_projectile_sprites'):
             proj_sprites = gl.enemies.get_projectile_sprites()
+
+        # Projectile speed from sprite PARAMB, ×2 for 2× scale (EB_ENEM.C:786,797)
+        speed = (proj_sprites[0].param * 2) if proj_sprites else 4
+        if self.x_step < 0:
+            velocity = XY(-speed, 0)
+        else:
+            velocity = XY(speed, 0)
 
         proj = EnemyProjectile(proj_sprites, pos.copy(), velocity)
         gl.screen_manager.add_active(proj)

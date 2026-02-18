@@ -110,9 +110,9 @@ class PlayerEntity(ga.FSM, ga.Entity):
         self.switch_state(self.state_init)
         self.keys = 0  # keys needed to open the exit
         # Enemy collision box (narrower than physical) - EB_HERO.C:123
-        # hero_enem_stat = {0,0,0,0,7,17,10,45} -> x=7, w=10, y=17, h=45
-        # This is the narrower hitbox used for enemy/hazard collision detection
-        self.enemy_bbox = pygame.Rect(7, 17, 10, 45)
+        # hero_enem_stat = {0,0,0,0,7,17,10,45}
+        # LTB=7, RTB=17 (width=10), UPB=10, DWB=45 (height=35), all 2× scaled
+        self.enemy_bbox = pygame.Rect(14, 20, 20, 70)
         self.power = 0  # weapon's battery power
         self.temp = 0  # weapons's temperature increase
         self.fired = False  # to disable repeated shots
@@ -1006,10 +1006,12 @@ class Projectile(ga.Entity):
 
         if is_breakable:
             logging.debug("  Creating explosion with broken sprite")
-            # Explosion position is at object position (C code: NEW_X = ob->x, NEW_Y = ob->y)
+            # Explosion at bbox center minus 24px (2× of C's xplode: center - 12)
+            # EB_ENEM.C:80-85: x = bbox_center_x - 12; y = bbox_center_y - 12
             obj_pos = obj.get_position()
-            exp_x = obj_pos.x
-            exp_y = obj_pos.y
+            obj_bbox = obj.get_bbox()
+            exp_x = obj_pos.x + obj_bbox.x + obj_bbox.width // 2 - 24
+            exp_y = obj_pos.y + obj_bbox.y + obj_bbox.height // 2 - 24
 
             # Get explosion sprites
             explosion_sprites = gl.weapons.weapon["EXPLOSION"].anims
@@ -1065,10 +1067,13 @@ class Projectile(ga.Entity):
         else:
             # Non-breakable: explosion only, no broken sprite left behind
             # But object is STILL removed (xplode in C code removes the object)
-            # Explosion at object position (C code: NEW_X = ob->x, NEW_Y = ob->y)
+            # Explosion at bbox center minus 24px (EB_ENEM.C:80-85)
             logging.debug("  Non-breakable - explosion only, removing object")
             obj_pos = obj.get_position()
-            put_explosion(obj_pos.x, obj_pos.y)
+            obj_bbox = obj.get_bbox()
+            exp_x = obj_pos.x + obj_bbox.x + obj_bbox.width // 2 - 24
+            exp_y = obj_pos.y + obj_bbox.y + obj_bbox.height // 2 - 24
+            put_explosion(exp_x, exp_y)
             obj.vanish()  # Remove the object!
             snd.play_sound('blast')
 
