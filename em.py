@@ -272,11 +272,14 @@ class Gameplay:
         # Reset weapon power on level load (EB.C:1389)
         gl.player.power = 0
         gl.player.ammo = 0
-        gl.player.temperature = 0
+        gl.player.temp = 0
         if start_position:
             start_position += XY(gl.SPRITE_X // 2, gl.SPRITE_Y)
             gl.screen_manager.change_screen(start_screen)
             gl.player.stand(start_position)
+            # Level-entry sample (hero_enter_level_proc EB_HERO.C:681)
+            import emsound as snd
+            snd.play_sound('area')
 
     def loop_begin(self):
         di.clear_screen()

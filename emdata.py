@@ -239,9 +239,13 @@ class Level(LevelData):
         return entity
 
     def __init_monitor(self, sidx, position):
-        # it doesn't seem to be used
-        sprite = self.get_sprite(sidx)
-        entity = ga.Monitor([sprite], position)
+        # Monitor needs the full animation, not just one sprite, so that
+        # the random-flicker / special-frame logic in monitor_proc
+        # (EB_ENEM.C:214-241) has frames to choose from.
+        ends = self.get_anim_ends(sidx)
+        sprites = self.get_anim(ends)
+        entity = ga.Monitor(sprites, position)
+        entity.frame = sidx - ends[0]
         return entity
 
     def __init_rocketup(self, sidx, position):

@@ -16,11 +16,13 @@ MOVE_STEP = 8
 JUMP_STEPS = [20, 18, 16, 12, 10, 8, 6, 4, 2, 0]
 FALL_STEPS = [2, 4, 6, 8, 10, 12, 16, 18, 20, 22, 24,
               26, 28, 32, 34, 36, 38, 40, 42, 44, 48]
+# frozen-frames after teleport_in before regaining control (EB_HERO.C:134)
+TELEPORT_TIME = 12
 
-# touch procedure names
+# touch procedure names - matches item_contact() dispatch EB_HERO.C:586-599
 touch_procs = {0 : "none", 1 : "battery", 2 : "teleport", 3 :"checkpoint",
-               4 : "killer", 5 : "floppy", 6 :  "exit",
-               7 : "special good", 8 : "special bad"}
+               4 : "bomb", 5 : "floppy", 6 :  "exit",
+               7 : "special"}
 
 
 def put_explosion(x, y):
@@ -292,23 +294,23 @@ class PlayerEntity(ga.FSM, ga.Entity):
 
 
     def state_turn(self, init=False):
-        """Handle turning state."""
+        """Handle turning state - matches hero_turn_proc EB_HERO.C:895-906."""
         if init:
+            # Flip orientation, then walk frame counter to ±boundary
+            # C: SHAPE_NUM=8, SHAPE_CNTR=0/2, X_STEP=±1, exit when CNTR==-1 or 3
             self.orientation = 1 - self.orientation
             self.anim = "TURN"
             if self.orientation == 1:
                 self.frame = 0
-                self.counter = 2
+                self.turn_step = 1
             else:
                 self.frame = 2
-                self.counter = 2
+                self.turn_step = -1
         else:
-            self.counter -= 1
-            if self.orientation == 1:
-                self.frame += 1
-            else:
-                self.frame -= 1
-            return self.new_state(self.state_move)
+            next_frame = self.frame + self.turn_step
+            if next_frame < 0 or next_frame >= self.frames["TURN"]:
+                return self.new_state(self.state_move)
+            self.frame = next_frame
 
     def state_stand(self, init=False):
         """
@@ -350,22 +352,33 @@ class PlayerEntity(ga.FSM, ga.Entity):
 
     def state_teleport_in(self, init=False):
         """
-        Teleport fade in state (teleport in)
+        Teleport fade in state (teleport in).
+        After animation completes, holds for TELEPORT_TIME frames
+        before returning control (matches hero_teleport_wait_proc EB_HERO.C:841-871).
         """
         if self.teleport_target:
             if self.teleport_target[0] != gl.screen_manager.get_screen_number():
                 gl.screen_manager.change_screen(self.teleport_target[0])
             self.set_position(self.teleport_target[1] + XY(0, -gl.SPRITE_Y * 2))
         if init:
-            snd.play_sound('area')
+            # NOTE: C does not play any sound in hero_teleport_in_proc.
+            # The 'area' sample is only triggered on level entry / respawn
+            # (hero_enter_level_proc EB_HERO.C:681).
             self.anim = "TELE"
             self.counter = self.frames[self.anim] - 1
             self.frame = self.frames[self.anim] - 1
-        if not init:
-            if self.counter == 0:
-                return self.new_state(self.state_stand)
-            self.frame -= 1
-            self.counter -= 1
+            self.wait_counter = -1  # not yet in wait phase
+        else:
+            if self.wait_counter >= 0:
+                if self.wait_counter == 0:
+                    return self.new_state(self.state_stand)
+                self.wait_counter -= 1
+            elif self.counter == 0:
+                # animation finished, enter wait phase
+                self.wait_counter = TELEPORT_TIME
+            else:
+                self.frame -= 1
+                self.counter -= 1
 
     def state_death(self, init=False):
         """
@@ -492,7 +505,14 @@ class PlayerEntity(ga.FSM, ga.Entity):
                         obj.vanish()  # remove battery from the map
                         snd.play_sound('battery')
                 elif touch_type == 2:
-                    if self.controller.down:
+                    # C: teleport_up() sets teleport_flag, then hero_move_proc
+                    # checks (KEY_DW && teleport_flag) to trigger. The flag is
+                    # cleared at the top of every hero_move_proc call, so the
+                    # effective condition is "touching + DOWN in this frame".
+                    # Only hero_move_proc has the trigger, so the player must
+                    # be in a grounded state (state_stand or state_move).
+                    if (self.controller.down and
+                            self.state in (self.state_stand, self.state_move)):
                         snd.play_sound('teleport')
                         self.find_teleport_target(obj.get_position())
                         self.new_state(self.state_teleport_out)
@@ -510,7 +530,6 @@ class PlayerEntity(ga.FSM, ga.Entity):
                         # Reset weapon stats to 0 (EB_HERO.C:519)
                         self.power = 0
                         self.temp = 0
-                        self.temperature = 0
                         self.select_weapon(0)
 
                         # Visual feedback
@@ -524,8 +543,23 @@ class PlayerEntity(ga.FSM, ga.Entity):
                             di.info_lines.add("Game saved")
                         snd.play_sound('checkp')
                 elif touch_type == 4:
-                    # killer - trigger death (only if not already dying)
+                    # bomb - matches bomb() EB_HERO.C:523-535:
+                    # - PLAY_SAMPLE(blast_s)
+                    # - xplode() / xplode_and_broke() removes the bomb sprite
+                    #   and spawns a visual explosion at bbox center - 12
+                    # - bomb_flag++ triggers SWITCH_TO(hero_before_kill_proc)
+                    #   at the end of ENEM_TEST (EB_HERO.C:625)
                     if self.state != self.state_death:
+                        snd.play_sound('blast')
+                        # Explode the bomb sprite (xplode EB_ENEM.C:80-85)
+                        obj_pos = obj.get_position()
+                        obj_bbox = obj.get_bbox()
+                        exp_x = obj_pos.x + obj_bbox.x + obj_bbox.width // 2 - 24
+                        exp_y = obj_pos.y + obj_bbox.y + obj_bbox.height // 2 - 24
+                        put_explosion(exp_x, exp_y)
+                        obj.vanish()
+                        # Trigger player death (delayed via new_state, mirrors
+                        # bomb_flag check after ENEM_TEST completes)
                         self.new_state(self.state_death)
                 elif touch_type == 5:
                     # floppy - collect disk
@@ -538,48 +572,62 @@ class PlayerEntity(ga.FSM, ga.Entity):
                     di.info_lines.add("Disk collected (%d/3)" % gl.disks)
                     snd.play_sound('disk')
                 elif touch_type == 6:
-                    # exit - check disk requirement (EB_HERO.C:548-560)
+                    # exit - matches exit_level() EB_HERO.C:548-560 + the
+                    # KEY_DW + teleport_flag check in hero_move_proc:986.
+                    # In C the flow is: exit_level() sets teleport_flag++ and
+                    # exit_level_flag++ (no sound, no state change), then on
+                    # the same frame hero_move_proc tests (KEY_DW &&
+                    # teleport_flag) to trigger SWITCH_TO(hero_teleport_in_proc).
+                    # Both flags get reset at the top of every hero_move_proc
+                    # call, so the effective trigger is "touching exit +
+                    # DOWN + grounded state".
                     if gl.disks >= 3:
-                        # Get next level code from sprite param
-                        # NOTE: The param seems to be encoded, for now just advance to next level
-                        next_level = gl.current_level + 1
-                        di.info_lines.add("Level complete!")
-                        # Set exit flag for level transition
-                        gl.exit_level_flag = True
-                        gl.next_level_code = next_level
-                        # Trigger teleport out animation (EB_HERO.C:555-558)
-                        # teleport_flag++, teleport_x=0, teleport_y=0
-                        self.new_state(self.state_teleport_out)
-                        snd.play_sound('teleport')
+                        if (self.controller.down and
+                                self.state in (self.state_stand, self.state_move)):
+                            next_level = gl.current_level + 1
+                            di.info_lines.add("Level complete!")
+                            gl.exit_level_flag = True
+                            gl.next_level_code = next_level
+                            # teleport_x = teleport_y = 0 in C (no target)
+                            self.teleport_target = None
+                            self.new_state(self.state_teleport_out)
+                            snd.play_sound('teleport')
                     else:
                         di.info_lines.add("Need %d more disk(s)" % (3 - gl.disks))
                 elif touch_type == 7:
-                    # special item - matches special_proc() (EB_HERO.C:562-584)
-                    # Behavior depends on PARAM byte value
+                    # special item - matches special_proc() EB_HERO.C:562-584.
+                    # C sets teleport_flag and either exit_level_flag (param>=128)
+                    # or teleport_x/y (param<128 + DOWN). Actual teleport is
+                    # triggered by the KEY_DW + teleport_flag check in
+                    # hero_move_proc:986 (plays teleport_s, switches to
+                    # hero_teleport_in_proc). Both paths therefore require
+                    # DOWN + grounded state.
                     param = obj.sprites[obj.frame].param
                     if param >= 128:
-                        # PARAM >= 128: Alternate level exit
-                        # The param value itself becomes the next level code
-                        gl.next_level_code = param
-                        gl.exit_level_flag = True
-                        self.teleport_target = None  # teleport_x=0, teleport_y=0
-                        self.new_state(self.state_teleport_out)
-                        di.info_lines.add("Secret exit!")
-                    elif self.controller.down:
-                        # PARAM < 128: Requires DOWN key to activate
-                        # Halve the parameter value each activation
+                        # PARAM >= 128: alternate level exit
+                        # (sets teleport_x=0, teleport_y=0 + exit_level_flag++)
+                        if (self.controller.down and
+                                self.state in (self.state_stand, self.state_move)):
+                            gl.next_level_code = param
+                            gl.exit_level_flag = True
+                            self.teleport_target = None
+                            snd.play_sound('teleport')
+                            self.new_state(self.state_teleport_out)
+                            di.info_lines.add("Secret exit!")
+                    elif (self.controller.down and
+                          self.state in (self.state_stand, self.state_move)):
+                        # PARAM < 128 + DOWN: halve param, then either
+                        # teleport to secret area (cave 0xec, pos 7,1) or
+                        # set bomb_flag (death trap).
                         obj.sprites[obj.frame].param = param // 2
                         if obj.sprites[obj.frame].param == 0:
-                            # Parameter reached 0: teleport to secret area
-                            # cave 0xec (236), position (7, 1) in grid coordinates
                             self.teleport_target = (0xec, XY(7 * gl.SPRITE_X, 1 * gl.SPRITE_Y))
+                            snd.play_sound('teleport')
                             self.new_state(self.state_teleport_out)
                             di.info_lines.add("Secret area found!")
                         else:
-                            # Parameter still > 0: trigger death (trap!)
                             if self.state != self.state_death:
                                 self.new_state(self.state_death)
-                    # No touch type 8 in original C code - only types 0-7
             di.message(XY(16, 40), "touch: %s" % names)
 
     def check_enemy_collision(self):
@@ -671,7 +719,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
         self.stand(respawn_pos)
 
         # Reset player stats
-        self.temperature = 0
+        self.temp = 0
         self.death_timer = 0
         self.touched = []  # Clear touched objects to prevent immediate re-death
 
@@ -683,6 +731,9 @@ class PlayerEntity(ga.FSM, ga.Entity):
 
         # Return to standing state
         self.switch_state(self.state_stand)
+
+        # Level-entry sample (hero_enter_level_proc EB_HERO.C:681)
+        snd.play_sound('area')
 
         logging.info("Respawned at checkpoint: screen=%d, pos=%s",
                      checkpoint_screen, self.get_position())
@@ -862,12 +913,29 @@ class Projectile(ga.Entity):
         # Move projectile
         self.position.x += self.step
 
-        # Check screen boundaries
+        # Check screen boundaries - matches OBJ_OUT path in
+        # short_miss_proc / long_miss_proc / bow_proc (EB_HERO.C:224, 252, 282)
+        # which simply does REMOVE_OBJ with no explosion or sound, regardless
+        # of weapon level. The triple-explosion is exclusive to bow_end_proc
+        # (the wall-hit path), not the screen-exit path.
         if self.position.x > gl.SCREEN_X * gl.SPRITE_X or self.position.x < -gl.SPRITE_X:
             logging.debug("Projectile exited screen at x=%d", self.position.x)
-            # Level 5: Triple explosion on wall/screen exit (EB_HERO.C:214-216)
+            self.vanish()
+            return
+
+        # Check collision with solid walls (EB_HERO.C:234-242, 262-269)
+        # cave_test in C blocks projectile when hitting solid sprites,
+        # then SWITCH_TO(miss_end_proc) does xplode() (visual only).
+        # blast_s is played ONLY when miss_enem_test() also finds an enemy
+        # at that spot - handled separately by check_all_collisions below.
+        if self.check_wall_collision():
+            logging.debug("Projectile hit wall at x=%d", self.position.x)
             if self.power_level == 5:
+                # bow_end_proc: triple explosion at wall (EB_HERO.C:214-216)
                 self.bow_end_explosion()
+            else:
+                # Single visual explosion at projectile position (xplode)
+                put_explosion(int(self.position.x), int(self.position.y))
             self.vanish()
             return
 
@@ -878,6 +946,36 @@ class Projectile(ga.Entity):
 
         if should_remove:
             self.vanish()
+
+    def check_wall_collision(self):
+        """
+        Check if projectile bbox overlaps a solid wall facing the projectile.
+        Matches cave_test() blocking behavior in EB_HERO.C:234-242 (short_miss),
+        262-269 (long_miss), 293-310 (bow).
+        """
+        screen = gl.screen_manager.get_screen()
+        if not screen:
+            return False
+        rel = self.get_bbox()
+        me = pygame.Rect(self.position.x + rel.x,
+                         self.position.y + rel.y,
+                         rel.w, rel.h)
+        # Level 5 bow uses extended vertical box covering both sprite halves
+        # (EB_HERO.C:285-286: YE += 18 in miss_enem_test setup)
+        if self.power_level == 5:
+            me.height = gl.SPRITE_Y * 2 - 12
+        for obj in screen.collisions:
+            you = obj.get_bbox().copy()
+            you.move_ip(obj.get_position())
+            if not me.colliderect(you):
+                continue
+            sides = obj.get_sides()
+            # Only block if the wall has a side facing the projectile's direction
+            if self.step > 0 and sides["L"]:
+                return True
+            if self.step < 0 and sides["R"]:
+                return True
+        return False
 
     def check_all_collisions(self):
         """
@@ -1084,6 +1182,8 @@ class Projectile(ga.Entity):
             put_explosion(X-b,   Y);
             put_explosion(X+b*8, Y+12);
             put_explosion(X+b,   Y+24);
+        bow_end_proc plays blast_s only when miss_enem_test() also hits
+        an enemy; the visual triple-explosion itself is silent.
         """
         pos = self.get_position()
         direction = 1 if self.step > 0 else -1
@@ -1092,7 +1192,6 @@ class Projectile(ga.Entity):
         put_explosion(pos.x - direction * 2, pos.y)
         put_explosion(pos.x + direction * 16, pos.y + 24)
         put_explosion(pos.x + direction * 2, pos.y + 48)
-        snd.play_sound('blast')
 
         logging.debug("Bow triple explosion at x=%d", pos.x)
 

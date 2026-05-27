@@ -501,20 +501,26 @@ class CyclePlus(Entity):
         Entity.__init__(self, sprites, position)
         self.show = False
         self.empty_delay = 0
+        # Start "before frame 0" so first increment displays frame 0
+        # (matches SHAPE_CNTR=-1 init in shape_rot_plus_init EB_ENEM.C:286)
+        self.frame = -1
 
     def update(self):
         if self.delay > 0:
             self.delay -= 1
+            return
+        # Matches shape_rot_plus_proc EB_ENEM.C:244-275
+        if not self.show:
+            self.show = True
+        self.frame += 1
+        if self.frame == len(self.sprites):
+            # Cycle ended: hide and reset for next show
+            self.frame = -1
+            self.show = False
+        if self.show:
+            self.delay = self.sprites[self.frame].param
         else:
-            if not self.show:
-                self.show = True
-            self.frame = (self.frame + 1) % len(self.sprites)
-            if self.frame == 0:
-                self.show = False
-            if self.show:
-                self.delay = self.sprites[self.frame].param
-            else:
-                self.delay = self.empty_delay
+            self.delay = self.empty_delay
 
     def display(self):
         if self.show:
@@ -555,25 +561,31 @@ class PulsePlus(Entity):
         self.direction = 1  # 1 up -1 down
         self.show = False
         self.empty_delay = 0
+        # Start "before frame 0" so first increment displays frame 0
+        # (matches SHAPE_CNTR=-1 init in shape_pulse_plus_init EB_ENEM.C:341)
+        self.frame = -1
 
     def update(self):
         if self.delay > 0:
             self.delay -= 1
+            return
+        # Matches shape_pulse_plus_proc EB_ENEM.C:294-330
+        if not self.show:
+            self.show = True
+        self.frame += self.direction
+        if self.frame < 0:
+            # End of cycle: hide and reset for next show (CNTR=-1, AUX_2=0 in C)
+            self.frame = -1
+            self.show = False
+            self.direction = 1
+        elif self.frame == len(self.sprites):
+            # Bounce at top (SHAPE_CNTR = SHAPES_NUM - 2 in C)
+            self.frame -= 2
+            self.direction = -1
+        if self.show:
+            self.delay = self.sprites[self.frame].param
         else:
-            if not self.show:
-                self.show = True
-            self.frame += self.direction
-            if self.frame < 0:
-                self.show = False
-                self.frame = 0
-                self.direction *= -1
-            elif self.frame == len(self.sprites):
-                self.frame -= 1
-                self.direction *= -1
-            if self.show:
-                self.delay = self.sprites[self.frame].param
-            else:
-                self.delay = self.empty_delay
+            self.delay = self.empty_delay
 
     def display(self):
         if self.show:
@@ -811,8 +823,31 @@ class KillingFloor(Entity):
 
 
 class Monitor(Entity):
+    """
+    Flickering monitor sprite - matches monitor_proc EB_ENEM.C:214-241.
+    Frame normally toggles between 0 and 1 each tick; rarely (1/128 chance)
+    plays a longer "special" animation from frame 2+.
+    """
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
+        self.counter = 0
+
+    def update(self):
+        if self.counter == 0:
+            # Normal flicker between first two frames
+            choices = min(2, len(self.sprites))
+            self.frame = gl.random(choices)
+            # 1/128 chance to play a "special" animation
+            if len(self.sprites) > 2 and gl.random(128) == 0:
+                self.frame = gl.random(len(self.sprites) - 2) + 2
+                param = self.sprites[self.frame].param
+                if param > 0:
+                    self.counter = param + gl.random(param)
+        else:
+            self.counter -= 1
+            if self.counter == 0:
+                # End of special animation - back to normal flicker next tick
+                self.frame = 0
 
 
 class Display(Entity):
@@ -1207,7 +1242,10 @@ class EnemyPlatform(Entity):
         self.die()
 
     def die(self):
-        """Enemy destruction - matches xplode() from EB_ENEM.C:70-89"""
+        """Enemy destruction - matches xplode() from EB_ENEM.C:70-89.
+        xplode() in C is silent; blast_s was already played by the caller
+        (miss_end_proc / short_miss_proc / long_miss_proc / bow_proc).
+        """
         bbox = self.get_bbox()
         pos = self.get_position()
         center_x = pos.x + bbox.x + bbox.w // 2 - 12
@@ -1216,7 +1254,6 @@ class EnemyPlatform(Entity):
         logging.debug("Enemy destroyed at pos %s, explosion at (%d,%d)",
                      pos, center_x, center_y)
         put_explosion(center_x, center_y)
-        snd.play_sound('blast')
         self.vanish()
 
     def display(self):
@@ -1368,7 +1405,9 @@ class EnemyFlying(Entity):
 
         proj = EnemyProjectile(proj_sprites, pos.copy(), velocity)
         gl.screen_manager.add_active(proj)
-        snd.play_sound('eshoot')
+        # C plays laser_s for flying creature shot (EB_ENEM.C:954),
+        # same sample as cannons. There is no eshoot_s in the C source.
+        snd.play_sound('laser')
         logging.debug("EnemyFlying fired projectile at %s (downward)", pos)
 
         self.state = "patrol"
@@ -1409,7 +1448,10 @@ class EnemyFlying(Entity):
         self.die()
 
     def die(self):
-        """Enemy destruction - matches xplode() from EB_ENEM.C:70-89"""
+        """Enemy destruction - matches xplode() from EB_ENEM.C:70-89.
+        xplode() in C is silent; blast_s was already played by the caller
+        (miss_end_proc / short_miss_proc / long_miss_proc / bow_proc).
+        """
         bbox = self.get_bbox()
         pos = self.get_position()
         center_x = pos.x + bbox.x + bbox.w // 2 - 12
@@ -1418,7 +1460,6 @@ class EnemyFlying(Entity):
         logging.debug("EnemyFlying destroyed at pos %s, explosion at (%d,%d)",
                      pos, center_x, center_y)
         put_explosion(center_x, center_y)
-        snd.play_sound('blast')
         self.vanish()
 
     def display(self):
