@@ -230,7 +230,13 @@ class Level(LevelData):
     def __init_flashplus(self, sidx, position):
         sprite = self.get_sprite(sidx)
         entity = ga.FlashPlus([sprite], position)
-        entity.set_initial_delay(sprite.init, sprite.param)
+        # The off-phase duration and the initial delay come from the PRECEDING
+        # sprite's param (C: st = STAT_BUFF + 8*(FIRST_SHAPE-1); AUX_2 =
+        # st[PARAMB], EB_ENEM.C:365-366,390-392). The on-phase uses this
+        # sprite's own param. Mirrors the CyclePlus/PulsePlus empty_delay pattern.
+        preceeding = self.get_sprite(sidx - 1) if sidx > 0 else sprite
+        entity.empty_delay = preceeding.param
+        entity.set_initial_delay(sprite.init, preceeding.param)
         return entity
 
     def __init_display(self, sidx, position):
@@ -334,6 +340,10 @@ class Level(LevelData):
         entity.shoots = (sprite.param & 0x80) != 0
         entity.anims = anims
         entity.frames = frames
+        # Patrol speed comes from the spawner sprite's touch byte
+        # (C: NEW_X_STEP = -st[TPROCB], EB_ENEM.C:1179), 2x scaled.
+        # The sign is re-derived from facing direction in initialize_patrol().
+        entity.x_step = -(sprite.touch * 2)
         return entity
 
     def __get_active_entity(self, sidx, position):

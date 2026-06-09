@@ -622,17 +622,25 @@ class FlashPlus(Entity):
     def __init__(self, sprites, position):
         Entity.__init__(self, sprites, position)
         self.show = False
+        self.empty_delay = 0  # off-phase duration = preceding sprite's param
 
     def display(self):
         if self.show:
             Entity.display(self)
 
     def update(self):
+        # Toggle visibility. On-phase duration = this sprite's param; off-phase
+        # duration = the preceding sprite's param (empty_delay). Matches
+        # flash_plus_proc EB_ENEM.C:345-384 (visible uses st[SHAPE].PARAMB,
+        # invisible uses st[FIRST_SHAPE-1].PARAMB).
         if self.delay > 0:
             self.delay -= 1
         else:
             self.show = not self.show
-            self.delay = self.sprites[self.frame].param
+            if self.show:
+                self.delay = self.sprites[self.frame].param
+            else:
+                self.delay = self.empty_delay
 
     def get_touch(self):
         if self.show:
@@ -1079,6 +1087,13 @@ class EnemyPlatform(Entity):
             x -= gl.SPRITE_X
         self.left_boundary = x
 
+        # Remove creatures whose patrol span is under one tile
+        # (C: if ((AUX_2 - AUX_1) < 24) REMOVE_OBJ, EB_ENEM.C:933).
+        if self.right_boundary - self.left_boundary < gl.SPRITE_X:
+            self.initialized = True
+            self.vanish()
+            return
+
         # Face player (EB_ENEM.C:903-912)
         if gl.player and gl.player.get_x() > pos.x:
             self.x_step = abs(self.x_step)
@@ -1140,12 +1155,17 @@ class EnemyPlatform(Entity):
             self.anim_delay -= 1
             return
 
-        # Shooting countdown
-        if self.shoots and self.shoot_timer > 0:
-            self.shoot_timer -= 1
+        # Shooting countdown. The timer floors at 0 and HOLDS there until the
+        # animation aligns (frame == 0), matching C's "Y_STEP floors at 0x80,
+        # then fire when SHAPE_CNTR == 0" logic (EB_ENEM.C:821-831). A `> 0`
+        # guard would permanently jam the enemy if the timer expired off-frame.
+        if self.shoots:
+            if self.shoot_timer > 0:
+                self.shoot_timer -= 1
             if self.shoot_timer == 0 and self.frame == 0:
-                # Warning sound based on distance (EB_ENEM.C:826-829)
-                if abs(self.x_step) < 5:
+                # Warning sound based on distance (EB_ENEM.C:826-829).
+                # Threshold is 2x scaled (C compares unscaled X_STEP < 5).
+                if abs(self.x_step) < 10:
                     snd.play_sound('warning')
                 else:
                     snd.play_sound('warning2')
@@ -1184,25 +1204,30 @@ class EnemyPlatform(Entity):
             self.anim_delay -= 1
             return
 
-        # Fire horizontal projectile toward facing direction
         pos = self.get_position()
+        bbox = self.get_bbox()
 
-        # Get projectile sprite if available
-        proj_sprites = []
-        if gl.enemies and hasattr(gl.enemies, 'get_projectile_sprites'):
-            proj_sprites = gl.enemies.get_projectile_sprites()
-
-        # Projectile speed from sprite PARAMB, ×2 for 2× scale (EB_ENEM.C:786,797)
-        speed = (proj_sprites[0].param * 2) if proj_sprites else 4
+        # The projectile sprite is the enemy's own shot animation: SLEFT when
+        # firing left, SRIGHT when firing right (C: NEW_SHAPE_NUM = SHAPE_NUM
+        # + 2 / + 1, EB_ENEM.C:783,794). Speed is the shot sprite's own param,
+        # 2x scaled (NEW_X_STEP = -/+ st[PARAMB], EB_ENEM.C:786,797).
         if self.x_step < 0:
+            proj_sprites = self.anims.get("SLEFT", []) if self.anims else []
+            speed = (proj_sprites[0].param * 2) if proj_sprites else 4
             velocity = XY(-speed, 0)
+            # spawn one tile left of the bbox: NEW_X = XB - 24 (2x), NEW_Y = Y
+            spawn = XY(pos.x + bbox.x - gl.SPRITE_X, pos.y)
         else:
+            proj_sprites = self.anims.get("SRIGHT", []) if self.anims else []
+            speed = (proj_sprites[0].param * 2) if proj_sprites else 4
             velocity = XY(speed, 0)
+            # spawn just right of the bbox: NEW_X = XE + 1 (2x), NEW_Y = Y
+            spawn = XY(pos.x + bbox.x + bbox.w + 2, pos.y)
 
-        proj = EnemyProjectile(proj_sprites, pos.copy(), velocity)
+        proj = EnemyProjectile(proj_sprites, spawn, velocity)
         gl.screen_manager.add_active(proj)
         snd.play_sound('shoot')
-        logging.debug("EnemyPlatform fired projectile at %s", pos)
+        logging.debug("EnemyPlatform fired projectile at %s", spawn)
 
         self.state = "patrol"
 
@@ -1302,21 +1327,36 @@ class EnemyFlying(Entity):
         pos = self.get_position()
         screen = gl.screen_manager.get_screen()
 
-        # Scan right for boundary (wall only - no ground check for flying enemies)
+        # Scan right for boundary (wall only - no ground check for flying).
+        # C probes up to ~300px (2x = 600) and clamps at the screen edge
+        # (EB_ENEM.C:1039-1068). Use full-tile (SPRITE_X) steps like the
+        # platform scan; stop at a wall or the screen edge.
+        max_x = gl.SCREEN_X * gl.SPRITE_X
         x = pos.x
-        for _ in range(12):  # Max 12 tiles
-            if self.would_collide_at(XY(x + gl.SPRITE_X // 2, pos.y), XY(1, 0), screen):
+        for _ in range(gl.SCREEN_X):
+            if x + gl.SPRITE_X > max_x:
                 break
-            x += gl.SPRITE_X // 2
+            if self.would_collide_at(XY(x + gl.SPRITE_X, pos.y), XY(1, 0), screen):
+                break
+            x += gl.SPRITE_X
         self.right_boundary = x
 
         # Scan left for boundary
         x = pos.x
-        for _ in range(12):
-            if self.would_collide_at(XY(x - gl.SPRITE_X // 2, pos.y), XY(-1, 0), screen):
+        for _ in range(gl.SCREEN_X):
+            if x - gl.SPRITE_X < 0:
                 break
-            x -= gl.SPRITE_X // 2
+            if self.would_collide_at(XY(x - gl.SPRITE_X, pos.y), XY(-1, 0), screen):
+                break
+            x -= gl.SPRITE_X
         self.left_boundary = x
+
+        # Remove creatures whose patrol span is under one tile
+        # (C: if ((AUX_2 - AUX_1) < 24) REMOVE_OBJ, EB_ENEM.C:1073).
+        if self.right_boundary - self.left_boundary < gl.SPRITE_X:
+            self.initialized = True
+            self.vanish()
+            return
 
         # Face player
         if gl.player and gl.player.get_x() > pos.x:
@@ -1330,7 +1370,9 @@ class EnemyFlying(Entity):
         if self.shoots:
             self.shoot_timer = 32 + gl.random(64)
 
-        self.anim_delay = gl.random(16)
+        # Initial step delay: random(256) % ((PARAMB & 0x0f) + 1) (EB_ENEM.C:1081)
+        param = self.sprites[0].param if self.sprites else 0
+        self.anim_delay = gl.random(256) % ((param & 0x0f) + 1)
         self.initialized = True
         self.state = "patrol"
         logging.debug("EnemyFlying initialized: pos=%s, bounds=[%d, %d]",
@@ -1359,11 +1401,13 @@ class EnemyFlying(Entity):
             self.anim_delay -= 1
             return
 
-        # Shooting countdown
-        if self.shoots and self.shoot_timer > 0:
-            self.shoot_timer -= 1
+        # Shooting countdown - floor at 0 and hold until the frame aligns
+        # (see EnemyPlatform.update_patrol; EB_ENEM.C:988-995).
+        if self.shoots:
+            if self.shoot_timer > 0:
+                self.shoot_timer -= 1
             if self.shoot_timer == 0 and self.frame == 0:
-                # Warning sound (EB_ENEM.C:826-829)
+                # Warning sound (EB_ENEM.C:993)
                 snd.play_sound('warning2')
                 self.anim_delay = 16
                 self.shoot_timer = 32 + gl.random(64)
@@ -1378,37 +1422,52 @@ class EnemyFlying(Entity):
         max_frames = len(anim_sprites) if anim_sprites else 1
         self.frame = (self.frame + 1) % max_frames
 
-        # Boundary check - reverse direction at edges
+        # Per-step delay from current sprite PARAMB lower nibble (EB_ENEM.C:1001).
+        # Platform enemies already do this; flying enemies were missing it.
+        sprite = self._get_current_sprite()
+        param = sprite.param if sprite else 0
+        self.anim_delay = param & 0x0f
+
+        # Boundary check - reverse direction at edges. Unlike platform creatures
+        # (EB_ENEM.C:846,856), the flying proc changes SHAPE_NUM but does NOT
+        # reset SHAPE_CNTR on the flip (EB_ENEM.C:1003-1020), so the frame
+        # carries over. (Moot for the shipped flying enemy: its MLEFT/MRIGHT are
+        # single-frame, but kept faithful.)
         if self.x_step < 0 and self.position.x <= self.left_boundary:
             self.x_step = -self.x_step
             self.anim = "MRIGHT"
-            self.frame = 0
         elif self.x_step > 0 and self.position.x >= self.right_boundary:
             self.x_step = -self.x_step
             self.anim = "MLEFT"
-            self.frame = 0
 
     def update_shoot(self):
-        """Fire projectile DOWNWARD (unlike platform enemy)"""
+        """Fire projectile DOWNWARD (unlike platform enemy) - EB_ENEM.C:947-974"""
         if self.anim_delay > 0:
             self.anim_delay -= 1
             return
 
-        # Fire DOWNWARD projectile (flying enemies shoot down)
         pos = self.get_position()
-        velocity = XY(0, 4)  # Always fires down
+        bbox = self.get_bbox()
 
-        # Get projectile sprite if available
-        proj_sprites = []
-        if gl.enemies and hasattr(gl.enemies, 'get_projectile_sprites'):
-            proj_sprites = gl.enemies.get_projectile_sprites()
+        # Projectile sprite is the enemy's own shot animation (SLEFT/SRIGHT
+        # selected by facing, C: NEW_SHAPE_NUM = SHAPE_NUM + 2 / + 1,
+        # EB_ENEM.C:958-961). Flying shots travel straight down at the shot
+        # sprite's param speed, 2x scaled (NEW_Y_STEP = st[PARAMB], :966).
+        if self.x_step < 0:
+            proj_sprites = self.anims.get("SLEFT", []) if self.anims else []
+        else:
+            proj_sprites = self.anims.get("SRIGHT", []) if self.anims else []
+        speed = (proj_sprites[0].param * 2) if proj_sprites else 4
+        velocity = XY(0, speed)
+        # spawn just below the bbox: NEW_X = X, NEW_Y = YE + 1 (2x)
+        spawn = XY(pos.x, pos.y + bbox.y + bbox.h + 2)
 
-        proj = EnemyProjectile(proj_sprites, pos.copy(), velocity)
+        proj = EnemyProjectile(proj_sprites, spawn, velocity)
         gl.screen_manager.add_active(proj)
         # C plays laser_s for flying creature shot (EB_ENEM.C:954),
         # same sample as cannons. There is no eshoot_s in the C source.
         snd.play_sound('laser')
-        logging.debug("EnemyFlying fired projectile at %s (downward)", pos)
+        logging.debug("EnemyFlying fired projectile at %s (downward)", spawn)
 
         self.state = "patrol"
 

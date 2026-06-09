@@ -188,6 +188,21 @@ class PlayerEntity(ga.FSM, ga.Entity):
         if init:
             self.switch_state(self.state_stand)
 
+    def state_before_jump(self, init=False):
+        """
+        2-frame crouch before the jump proper.
+        Matches hero_before_jump_proc (EB_HERO.C:797-819): the hero holds the
+        land pose for 2 frames, then the jump (and jump sound) begins. The held
+        direction is (re)sampled by state_jump's init, as C does at CNTR==2.
+        """
+        if init:
+            self.counter = 0
+            self.anim = ("LLAND", "RLAND")[self.orientation]
+            self.frame = 0
+        self.counter += 1
+        if self.counter == 2:
+            return self.new_state(self.state_jump)
+
     def state_jump(self, init=False):
         """Handle jumping state."""
         if init:
@@ -250,14 +265,15 @@ class PlayerEntity(ga.FSM, ga.Entity):
                 self.jump -= 1
 
     def state_land(self, init=False):
-        """Handle landing state."""
+        """Handle landing state - hero_after_fall_proc EB_HERO.C:782-795."""
         if init:
-            snd.play_sound('jumpend')
             self.counter = 2
         self.anim = ("LLAND", "RLAND")[self.orientation]
         self.frame = 0
         self.counter -= 1
         if self.counter == 0:
+            # C plays jumpend_s at CNTR==2, the frame it returns to move
+            snd.play_sound('jumpend')
             return self.new_state(self.state_stand)
 
     def state_move(self, init=False):
@@ -269,7 +285,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
             return self.switch_state(self.state_fall)
         else:
             if self.controller.up:
-                return self.new_state(self.state_jump)
+                return self.new_state(self.state_before_jump)
             if self.controller.left:
                 if self.orientation == 1:
                     return self.switch_state(self.state_turn)
@@ -327,7 +343,7 @@ class PlayerEntity(ga.FSM, ga.Entity):
         if self.controller.left or self.controller.right:
             return self.switch_state(self.state_move)
         if self.controller.up:
-            return self.switch_state(self.state_jump)
+            return self.switch_state(self.state_before_jump)
 
     def state_teleport_out(self, init=False):
         """
@@ -449,12 +465,12 @@ class PlayerEntity(ga.FSM, ga.Entity):
 
     def inc_power(self):
         """
-        Increase available power.
-        Matches original: gun_power = (++gun_power > 5) ? 5 : gun_power
+        take_battery() EB_HERO.C:491-498. Cap power at 5, but ALWAYS refill
+        the magazine to full -- even at max power the battery tops up ammo.
         """
-        if self.power < 5:
-            self.select_weapon(self.power + 1)
-            di.info_lines.add("battery collected")
+        self.power = min(self.power + 1, 5)
+        self.ammo = self.magazine[self.power]
+        di.info_lines.add("battery collected")
 
     def power_and_cooldown(self):
         """
@@ -499,11 +515,11 @@ class PlayerEntity(ga.FSM, ga.Entity):
                 names += touch_procs[touch_type] + " "
                 # handle touch according to its type
                 if touch_type == 1:
-                    # battery - only collect if not at max power
-                    if self.power < 5:
-                        self.inc_power()
-                        obj.vanish()  # remove battery from the map
-                        snd.play_sound('battery')
+                    # battery - take_battery() EB_HERO.C:491-498. Always
+                    # collected and refills ammo, even at max power.
+                    self.inc_power()
+                    obj.vanish()  # remove battery from the map
+                    snd.play_sound('battery')
                 elif touch_type == 2:
                     # C: teleport_up() sets teleport_flag, then hero_move_proc
                     # checks (KEY_DW && teleport_flag) to trigger. The flag is
