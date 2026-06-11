@@ -679,9 +679,9 @@ class RocketUp(Entity):
 
     def update(self):
         if not self.initialized:
-            # Get speed from sprite param
+            # Speed from sprite param, 2x scaled (Y_STEP = st[PARAMB], EB_ENEM.C:436)
             sprite = self.sprites[0] if self.sprites else None
-            self.speed = sprite.param if sprite and sprite.param > 0 else 4
+            self.speed = sprite.param * 2 if sprite and sprite.param > 0 else 8
             self.initialized = True
 
         if self.state == "waiting":
@@ -690,7 +690,7 @@ class RocketUp(Entity):
             self.fly()
 
     def check_trigger(self):
-        """Fire when player is aligned below - EB_ENEM.C:422-441"""
+        """Fire when player is aligned above - EB_ENEM.C:422-441"""
         if not gl.player:
             return
 
@@ -698,17 +698,17 @@ class RocketUp(Entity):
         my_pos = self.get_position()
         bbox = self.get_bbox()
 
-        # Player center X
-        player_cx = player_pos.x + 24  # Approximate player center
-        player_top = player_pos.y
+        # Hero center point: HERO_X+12, HERO_Y+24 (2x scaled)
+        player_cx = player_pos.x + 24
+        player_cy = player_pos.y + 48
 
-        # Check horizontal alignment (XB-8 to XE+8)
-        xb = my_pos.x + bbox.x - 8
-        xe = my_pos.x + bbox.x + bbox.width + 8
-        my_bottom = my_pos.y + bbox.y + bbox.height
+        # Check horizontal alignment (XB-8 to XE+8, 2x scaled)
+        xb = my_pos.x + bbox.x - 16
+        xe = my_pos.x + bbox.x + bbox.width + 16
+        my_top = my_pos.y + bbox.y
 
-        # Player must be BELOW rocket (player top > rocket bottom)
-        if xb < player_cx < xe and player_top > my_bottom:
+        # Player must be ABOVE rocket (y < YB, EB_ENEM.C:431)
+        if xb < player_cx < xe and player_cy < my_top:
             # 1/8 chance per frame to fire (EB_ENEM.C:436)
             if gl.random(8) == 0:
                 self.state = "flying"
@@ -748,9 +748,9 @@ class RocketDown(Entity):
 
     def update(self):
         if not self.initialized:
-            # Get speed from sprite param
+            # Speed from sprite param, 2x scaled (Y_STEP = st[PARAMB], EB_ENEM.C:479)
             sprite = self.sprites[0] if self.sprites else None
-            self.speed = sprite.param if sprite and sprite.param > 0 else 4
+            self.speed = sprite.param * 2 if sprite and sprite.param > 0 else 8
             self.initialized = True
 
         if self.state == "waiting":
@@ -759,7 +759,7 @@ class RocketDown(Entity):
             self.fly()
 
     def check_trigger(self):
-        """Fire when player is aligned above - EB_ENEM.C:422-441"""
+        """Fire when player is aligned below - EB_ENEM.C:465-484"""
         if not gl.player:
             return
 
@@ -767,17 +767,17 @@ class RocketDown(Entity):
         my_pos = self.get_position()
         bbox = self.get_bbox()
 
-        # Player center X
-        player_cx = player_pos.x + 24  # Approximate player center
-        player_bottom = player_pos.y + 96  # Approximate player bottom (2 sprites tall)
+        # Hero center point: HERO_X+12, HERO_Y+24 (2x scaled)
+        player_cx = player_pos.x + 24
+        player_cy = player_pos.y + 48
 
-        # Check horizontal alignment (XB-8 to XE+8)
-        xb = my_pos.x + bbox.x - 8
-        xe = my_pos.x + bbox.x + bbox.width + 8
-        my_top = my_pos.y + bbox.y
+        # Check horizontal alignment (XB-8 to XE+8, 2x scaled)
+        xb = my_pos.x + bbox.x - 16
+        xe = my_pos.x + bbox.x + bbox.width + 16
+        my_bottom = my_pos.y + bbox.y + bbox.height
 
-        # Player must be ABOVE rocket (player bottom < rocket top)
-        if xb < player_cx < xe and player_bottom < my_top:
+        # Player must be BELOW rocket (y > YE, EB_ENEM.C:474)
+        if xb < player_cx < xe and player_cy > my_bottom:
             # 1/8 chance per frame to fire (EB_ENEM.C:436)
             if gl.random(8) == 0:
                 self.state = "flying"
@@ -951,12 +951,17 @@ class CannonBase(Entity):
 
     def update(self):
         if not self.initialized:
-            # Get timing and speed from sprite param (EB_ENEM.C:690-691)
-            # PARAMB is used for BOTH firing interval AND projectile speed
+            # Firing interval = cannon sprite's param in frames (AUX_2,
+            # EB_ENEM.C:691). Speed = the PROJECTILE sprite's param — the last
+            # frame of the cannon animation — read after obj = new_obj
+            # (EB_ENEM.C:661-671), 2x scaled.
             sprite = self.sprites[0] if self.sprites else None
             param = sprite.param if sprite and sprite.param > 0 else 8
-            self.fire_interval = param
-            self.projectile_speed = param  # Speed = param (EB_ENEM.C:668-671)
+            self.fire_interval = param  # frames - no scaling
+            if self.projectile_sprite and self.projectile_sprite.param > 0:
+                self.projectile_speed = self.projectile_sprite.param * 2
+            else:
+                self.projectile_speed = 8
             # Initial random delay: random(param) - EB_ENEM.C:690
             self.fire_timer = gl.random(param) if param > 0 else 0
             self.initialized = True

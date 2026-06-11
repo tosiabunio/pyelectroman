@@ -8,6 +8,13 @@ PyElectroMan is an ongoing effort to recreate the original DOS game in Python. T
 
 The port is based on the original (unreleased) source code and uses art assets from the game, licensed under **CC BY-SA**.
 
+The original game can be played online at:
+
+* [DOSGames.com](https://dosgames.com/game/electro-man/)
+* [RetroGames.cz](https://www.retrogames.cz/play_1149-DOS.php)
+
+The DOSBox version, ready to run on modern Windows, is available for free at [GOG.com](https://www.gog.com/en/game/electro_man).
+
 ## Project History
 
 Development began years ago but went dormant for roughly 15 years due to the complexity of the original codebase — 30+ years old, difficult to parse, and challenging to translate accurately.
