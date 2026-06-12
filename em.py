@@ -54,8 +54,11 @@ class Gameplay:
                              pygame.K_0: self.on_k_0,
                              pygame.K_d: self.on_k_d,
                              pygame.K_f: self.on_k_f,
+                             pygame.K_r: self.on_k_r,
                              pygame.K_F7: self.on_k_f7}
         self.deferred = None
+        self.quit_ask = False
+        self.restart_ask = False
 
     @property
     def init_map(self):
@@ -240,7 +243,15 @@ class Gameplay:
             gl.player.select_weapon(0)
 
     def on_k_escape(self):
-        gl.loop_main_loop = False
+        # Ask for confirmation before quitting the level (EB.C:1117-1129).
+        # Deferred to the end of the frame so the prompt is drawn over a
+        # fully rendered game screen.
+        self.quit_ask = True
+
+    def on_k_r(self):
+        # Ask for confirmation before restarting the level (KEY_RESTART =
+        # R or Alt+F3, EB.H:68; EB.C:1103-1115). Deferred like quit_ask.
+        self.restart_ask = True
 
     def on_k_d(self):
         """Debug: trigger player death (Shift+D)"""
@@ -281,6 +292,25 @@ class Gameplay:
             import emsound as snd
             snd.play_sound('area')
 
+    def restart_level(self):
+        """
+        Restart the current level from scratch.
+        Matches EB.C:1087 (next_level_num = level_num; game_break =
+        restart_level), which loops back into electro_body -> new_level():
+        a full fresh reload - start position, disks, weapon all reset.
+        """
+        gl.checkpoint.update(gl.current_level, 0, XY(0, 0))
+        mn.show_loading_animation()
+        self.load_level()
+        gl.screen = gl.screen_manager.get_screen()
+        # The player may be mid-jump or mid-death when restarting;
+        # return to a clean standing state (same pattern as respawn()).
+        gl.player.death_timer = 0
+        gl.player.touched = []
+        gl.player.to_ground = gl.player.check_ground(gl.screen)
+        gl.player.switch_state(gl.player.state_stand)
+        di.info_lines.add("Level restarted")
+
     def loop_begin(self):
         di.clear_screen()
 
@@ -320,10 +350,13 @@ class Gameplay:
         di.show()
 
     def start(self):
+        mn.show_loading_animation()
         self.load_level()
 
     def run(self):
         gl.loop_main_loop = True
+        self.quit_ask = False
+        self.restart_ask = False
         clock = pygame.time.Clock()
         while gl.loop_main_loop:
             # logic processing starts here
@@ -337,11 +370,16 @@ class Gameplay:
                 gl.exit_level_flag = False
                 # Load next level based on exit code
                 if gl.next_level_code < len(gl.level_names):
-                    gl.current_level = gl.next_level_code
-                    # Reset checkpoint to level start
-                    gl.checkpoint.update(gl.current_level, 0, XY(0, 0))
-                    self.load_level()
-                    di.info_lines.add("Level %d: %s" % (gl.current_level + 1, gl.level_names[gl.current_level]))
+                    # "Well done" screen between levels (EB.C:2025-2026)
+                    if mn.show_level_completed(gl.current_level + 1) == "quit":
+                        gl.loop_main_loop = False
+                    else:
+                        gl.current_level = gl.next_level_code
+                        # Reset checkpoint to level start
+                        gl.checkpoint.update(gl.current_level, 0, XY(0, 0))
+                        mn.show_loading_animation()
+                        self.load_level()
+                        di.info_lines.add("Level %d: %s" % (gl.current_level + 1, gl.level_names[gl.current_level]))
                 else:
                     # Game completed
                     di.info_lines.add("Congratulations! Game completed!")
@@ -355,6 +393,17 @@ class Gameplay:
             self.loop_end()
             gl.render_time = time.perf_counter() - render_start
             # rendering ended
+            # In-game confirmation prompts (EB.C:1103-1129) - drawn over the
+            # rendered frame, block until Y or N
+            if self.quit_ask:
+                self.quit_ask = False
+                self.restart_ask = False
+                if mn.ask_confirmation("quit*(y or n)"):
+                    gl.loop_main_loop = False
+            elif self.restart_ask:
+                self.restart_ask = False
+                if mn.ask_confirmation("restart*level?*(y or n)"):
+                    self.restart_level()
             self.show() # show the screen
             gl.counter += 1
             clock.tick(20)  # keep constant frame rate (20fps)
@@ -412,6 +461,11 @@ def fast_main():
     # Main menu loop
     running = True
     while running:
+        # Title page with music (EB.C:2020) - fire advances to the menu
+        if mn.show_title_screen() == "quit":
+            running = False
+            continue
+
         # Show main menu
         menu_result = mn.show_main_menu()
 
@@ -439,7 +493,9 @@ def fast_main():
 
         # Check if game was completed or player quit
         if gl.game_completed:
-            # Show completion message and return to menu
+            # Congratulations screen with music (EB.C:2029), then back to title
+            if mn.show_congratulations() == "quit":
+                running = False
             di.info_lines.add("Thanks for playing!")
             gl.game_completed = False
         # Otherwise, player pressed ESC - return to menu

@@ -9,8 +9,24 @@ import pygame
 
 import emglobals as gl
 
-# Number of simultaneous mixer channels
+# Number of simultaneous mixer channels for sound effects
 _NUM_CHANNELS = 8
+# Extra dedicated channel for pattern music (channel 0 in the original driver)
+_MUSIC_CHANNEL = 8
+
+# Song strings (EB.C:184-202, FULL version).
+# First char is the sample file prefix; letters a-z queue sample
+# "<prefix><letter>"; modifiers slice the previously queued pattern:
+# '<' first half, '>' second half, '1'-'4' quarter N, '!' 1/16.
+TIT_SONG = ("t"
+            "hhhhaaaabbbbbbbbc<c>c<c>c<c>c<c>bbbbbbbbdddddddd"
+            "c<c>c<c>c<c>c<c>e<e>e<e>e<e>e<e>j<j>j<j>j<j>j<j>"
+            "ffffffffhhhhdddd"
+            "bbbbbbbbc<c>c<c>c<c>c<c>ffffffffbbbbbbbb"
+            "c<c>c<c>c<c>c<c>e<e>e<e>e<e>e<e>"
+            "ffffffffggggdddd")
+COD_SONG = "cbbbbccccddddbbbbaaaaccccddddaaaa"
+END_SONG = "eaaaabbbbccccddddbbbbcccceeee"
 
 
 class SoundManager:
@@ -85,7 +101,8 @@ class SoundManager:
         if not self.initialized:
             return
 
-        pygame.mixer.set_num_channels(_NUM_CHANNELS)
+        # +1 channel reserved for pattern music (never used by SFX)
+        pygame.mixer.set_num_channels(_NUM_CHANNELS + 1)
 
         for name, filename in self.SOUND_FILES.items():
             path = os.path.join(gl.data_folder, filename)
@@ -116,7 +133,7 @@ class SoundManager:
 
         new_prio = self.PRIORITY.get(sound_name, 5)
         sound = self.sounds[sound_name]
-        n = pygame.mixer.get_num_channels()
+        n = _NUM_CHANNELS  # SFX never touch the reserved music channel
 
         # First pass: look for a free channel
         for i in range(n):
@@ -143,6 +160,111 @@ class SoundManager:
     def is_enabled(self):
         """Return whether sound is enabled."""
         return self.enabled
+
+
+class MusicPlayer:
+    """
+    Pattern-based music engine, port of load_music/play_music (EB.C:1139-1295).
+
+    The original has no music format: songs are strings of ~2-4s 8kHz sample
+    "patterns" chained gaplessly on a dedicated channel, looping forever.
+    Slice modifiers reuse parts of the previous pattern (see song constants).
+    song_pos advances once per completed chain entry and drives the title
+    screen image flip in the caller.
+    """
+
+    # Raw sample data cache, shared between player instances: name -> bytes
+    _pattern_cache = {}
+
+    def __init__(self):
+        self.playlist = []
+        self.song_pos = 0
+        self.channel = None
+        mgr = gl.sound_manager
+        self.initialized = bool(mgr and mgr.initialized)
+        if self.initialized:
+            self.channel = pygame.mixer.Channel(_MUSIC_CHANNEL)
+
+    def _get_pattern(self, name):
+        """Load (and cache) raw sample data for pattern file <name>.wav."""
+        if name not in self._pattern_cache:
+            path = os.path.join(gl.data_folder, name + ".wav")
+            try:
+                self._pattern_cache[name] = pygame.mixer.Sound(path).get_raw()
+            except (pygame.error, FileNotFoundError) as e:
+                logging.warning("Failed to load music pattern %s: %s", path, e)
+                self._pattern_cache[name] = None
+        return self._pattern_cache[name]
+
+    def load_song(self, song):
+        """
+        Parse a song string into the playlist (EB.C:1143 load_music).
+        Each letter a-z appends one playback of sample <prefix><letter>;
+        modifiers slice the previously appended entry. Slices stay 2-byte
+        aligned (mixer samples are 16-bit; C lengths were 8-bit bytes).
+        """
+        self.playlist = []
+        if not self.initialized:
+            return False
+        prefix = song[0]
+        entries = []  # [raw, offset, length]
+        for c in song[1:]:
+            if 'a' <= c <= 'z':
+                raw = self._get_pattern(prefix + c)
+                if raw is not None:
+                    entries.append([raw, 0, len(raw)])
+            elif entries:
+                entry = entries[-1]
+                if c == '<':
+                    entry[2] //= 2
+                elif c == '>':
+                    entry[2] //= 2
+                    entry[1] += entry[2]
+                elif c in '1234':
+                    entry[2] //= 4
+                    entry[1] += entry[2] * (ord(c) - ord('1'))
+                elif c == '!':
+                    entry[2] //= 16
+                entry[1] &= ~1
+                entry[2] &= ~1
+        for raw, off, length in entries:
+            self.playlist.append(
+                pygame.mixer.Sound(buffer=raw[off:off + length]))
+        return len(self.playlist) > 0
+
+    def start(self):
+        """Start playing the loaded song from the beginning."""
+        if not self.playlist or not self.initialized:
+            return
+        if not gl.sound_manager.enabled:
+            return
+        self.song_pos = 0
+        self.channel.play(self.playlist[0])
+        if len(self.playlist) > 1:
+            self.channel.queue(self.playlist[1])
+
+    def update(self):
+        """
+        Call once per frame. Keeps the channel queue filled and advances
+        song_pos when the driver moves to the next pattern (the equivalent
+        of C's get_next_flag(0) change). The chain loops endlessly.
+        """
+        if not self.playlist or not self.initialized:
+            return
+        if not self.channel.get_busy():
+            # underrun (or sound was toggled) - restart current pattern
+            if gl.sound_manager.enabled:
+                self.channel.play(self.playlist[self.song_pos %
+                                                len(self.playlist)])
+        if self.channel.get_queue() is None:
+            self.song_pos = (self.song_pos + 1) % len(self.playlist)
+            nxt = (self.song_pos + 1) % len(self.playlist)
+            self.channel.queue(self.playlist[nxt])
+
+    def stop(self):
+        """Stop music playback (EB.C:1293 stop_sounds)."""
+        if self.initialized:
+            self.channel.stop()
 
 
 def play_sound(name):
